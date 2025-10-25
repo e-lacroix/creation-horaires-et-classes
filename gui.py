@@ -157,7 +157,7 @@ class SchedulerApp:
 ✓ Optimisation des ressources"""
 
         courses_text.insert("1.0", course_info)
-        courses_text.configure(state="disabled")
+        courses_text.text.configure(state="disabled")  # Access the underlying Text widget
 
         # Boutons d'action
         buttons_frame = ttk.Frame(parent)
