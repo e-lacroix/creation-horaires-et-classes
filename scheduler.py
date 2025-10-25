@@ -141,22 +141,36 @@ class ScheduleOptimizer:
             ]
             self.model.Add(sum(students_in_course) <= course.max_students)
 
-        # Contrainte 8: Chaque étudiant doit suivre tous les types de cours requis
-        # Pour simplifier, on assure que chaque étudiant suit au moins un cours de chaque type
-        course_types_needed = {}
+        # Contrainte 8: TOUS les étudiants doivent participer à TOUS les cours
         for course in self.courses:
-            if course.course_type not in course_types_needed:
-                course_types_needed[course.course_type] = []
-            course_types_needed[course.course_type].append(course)
+            for student in self.students:
+                self.model.Add(self.student_to_course[student.id][course.id] == 1)
 
+        # Contrainte 9: Un étudiant ne peut pas avoir 2 cours de la même matière dans une journée
         for student in self.students:
-            for course_type, courses_of_type in course_types_needed.items():
-                # Chaque étudiant doit suivre au moins 1 cours de ce type
-                courses_of_this_type = [
-                    self.student_to_course[student.id][course.id]
-                    for course in courses_of_type
-                ]
-                self.model.Add(sum(courses_of_this_type) >= 1)
+            for day in range(1, 10):  # 9 jours
+                # Grouper les cours par type
+                course_types_in_day = {}
+                for course in self.courses:
+                    if course.course_type not in course_types_in_day:
+                        course_types_in_day[course.course_type] = []
+
+                    # Vérifier si ce cours est dans cette journée pour cet étudiant
+                    for period in range(1, 5):  # 4 périodes
+                        timeslot = TimeSlot(day=day, period=period)
+                        course_on_day = self.model.NewBoolVar(
+                            f'student_{student.id}_course_{course.id}_day_{day}_period_{period}'
+                        )
+                        self.model.AddMultiplicationEquality(
+                            course_on_day,
+                            [self.course_to_timeslot[course.id][timeslot],
+                             self.student_to_course[student.id][course.id]]
+                        )
+                        course_types_in_day[course.course_type].append(course_on_day)
+
+                # Pour chaque type de cours, max 1 par jour pour cet étudiant
+                for course_type, course_vars in course_types_in_day.items():
+                    self.model.Add(sum(course_vars) <= 1)
 
     def add_optimization_objectives(self):
         """Ajoute des objectifs d'optimisation"""

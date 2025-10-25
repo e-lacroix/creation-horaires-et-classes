@@ -18,9 +18,10 @@
 ## Utilisation de l'application
 
 ### Étape 1: Configuration
-- L'onglet "Configuration" affiche automatiquement les cours requis
-- 36 classes pour 56 étudiants (Secondaire 4)
+- **Nombre d'étudiants**: Utilisez le spinbox pour choisir entre 1 et 200 étudiants
+- Le panneau affiche automatiquement les 36 cours requis
 - Répartition selon les exigences du secondaire québécois
+- Interface Material Design moderne et intuitive
 
 ### Étape 2: Génération de l'horaire
 - Cliquez sur **"Générer l'horaire optimisé"**
@@ -52,7 +53,8 @@
 ✓ Aucun conflit d'enseignant
 ✓ Aucun conflit de salle
 ✓ Aucun conflit d'étudiant
-✓ Tous les cours requis sont planifiés
+✓ **Tous les étudiants participent à tous les cours**
+✓ **Maximum 1 cours par matière par jour**
 
 ### Optimisations
 - Minimisation du nombre de salles utilisées
@@ -84,9 +86,11 @@
 ## Personnalisation
 
 ### Modifier le nombre d'étudiants
-Éditer `data_generator.py` ligne 20:
+**Directement dans l'interface!** Utilisez le spinbox dans le panneau de configuration.
+
+Ou par code, éditer `data_generator.py` ligne 8:
 ```python
-for i in range(56):  # Changer 56 pour le nombre désiré
+def generate_sample_data(num_students: int = 56):  # Changer la valeur par défaut
 ```
 
 ### Modifier la répartition des cours

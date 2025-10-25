@@ -44,16 +44,20 @@ python data_generator.py
    - Decision variables: course-to-timeslot, course-to-teacher, course-to-room, student-to-course
 
 3. **data_generator.py** - Generates sample data:
-   - 56 students all in Grade 4 (Secondaire 4)
+   - Configurable number of students (default 56), all in Grade 4 (Secondaire 4)
    - 36 total courses with Quebec-specific distribution
    - Minimal teacher set (13 teachers with overlapping competencies)
    - 8 classrooms
+   - Function signature: `generate_sample_data(num_students: int = 56)`
 
-4. **gui.py** - Tkinter desktop interface:
-   - Configuration tab showing course requirements
-   - Results tab displaying optimized schedule in TreeView
-   - Statistics tab with teacher load, room usage, student distribution
-   - Excel export functionality
+4. **gui.py** - Material Design desktop interface with ttkbootstrap:
+   - Configuration panel with student count spinbox (1-200 students)
+   - Course requirements info with emojis
+   - Results tab displaying optimized schedule in TreeView with alternating row colors
+   - Statistics tab with detailed teacher load, room usage, student distribution
+   - Excel export functionality with multiple sheets
+   - Modern UI with primary/success/info color schemes
+   - Status bar with real-time feedback
 
 ### Constraints Implemented
 
@@ -64,7 +68,8 @@ python data_generator.py
 - Rooms cannot host multiple courses simultaneously
 - Students cannot attend multiple courses simultaneously
 - Maximum 28 students per course
-- Each student must take at least one course of each required type
+- **ALL students must participate in ALL courses** (mandatory participation)
+- **Students cannot have 2 courses of the same subject type in one day**
 
 ### Quebec Course Requirements
 
@@ -78,9 +83,11 @@ The system generates schedules for these course types (with class counts):
 ## Key Design Decisions
 
 - **OR-Tools CP-SAT**: Chosen for efficient constraint satisfaction solving with optimization objectives
-- **Tkinter**: Standard Python GUI library for cross-platform desktop app
+- **ttkbootstrap**: Modern Material Design-inspired GUI library built on Tkinter for better aesthetics
 - **Minimal Resource Optimization**: Primary objective is to minimize classrooms used (secondary: balance teacher load)
 - **Teacher Specialization**: Teachers can teach multiple related subjects (e.g., Science teachers can teach Science, STE, ASC)
+- **Mandatory Course Participation**: All students must attend all 36 courses (constraint enforced at optimization level)
+- **Daily Subject Limit**: Students can only have one course per subject type per day to reduce cognitive load
 
 ## Development Notes
 

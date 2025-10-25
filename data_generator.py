@@ -5,19 +5,22 @@ from typing import List, Tuple
 from models import Course, Teacher, Classroom, Student, CourseType
 
 
-def generate_sample_data() -> Tuple[List[Course], List[Teacher], List[Classroom], List[Student]]:
+def generate_sample_data(num_students: int = 56) -> Tuple[List[Course], List[Teacher], List[Classroom], List[Student]]:
     """
     Génère les données d'exemple selon les spécifications:
-    - 56 étudiants
+    - Nombre d'étudiants configurable (par défaut 56)
     - Tous en Secondaire 4
     - Cours requis avec le bon nombre de classes
     - Enseignants capables d'enseigner les cours
     - Salles de classe
+
+    Args:
+        num_students: Nombre d'étudiants à générer (défaut: 56)
     """
 
-    # Créer les étudiants (56 étudiants, tous en Secondaire 4)
+    # Créer les étudiants (nombre configurable, tous en Secondaire 4)
     students = []
-    for i in range(56):
+    for i in range(num_students):
         students.append(Student(
             id=i + 1,
             name=f"Étudiant {i + 1}",
