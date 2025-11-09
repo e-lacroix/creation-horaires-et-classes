@@ -38,6 +38,7 @@ class Teacher:
     id: int
     name: str
     can_teach: List[CourseType]  # Cours que l'enseignant peut enseigner
+    preferred_classroom: Optional['Classroom'] = None  # Salle préférée de l'enseignant
 
     def __hash__(self):
         return hash(self.id)

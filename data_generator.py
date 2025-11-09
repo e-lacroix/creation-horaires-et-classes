@@ -130,6 +130,11 @@ def generate_sample_data(num_students: int = 56) -> Tuple[Dict[CourseType, int],
             capacity=28
         ))
 
+    # Assigner une salle préférée à chaque enseignant
+    # Les enseignants partagent des salles si nécessaire (13 enseignants, 8 salles)
+    for i, teacher in enumerate(teachers):
+        teacher.preferred_classroom = classrooms[i % len(classrooms)]
+
     return course_requirements, teachers, classrooms, students
 
 

@@ -91,6 +91,11 @@ class SchedulerApp:
         self.notebook.add(individual_frame, text="👤 Horaires individuels")
         self.create_individual_schedules_tab(individual_frame)
 
+        # Onglet Horaires des enseignants
+        teacher_frame = ttk.Frame(self.notebook)
+        self.notebook.add(teacher_frame, text="👨‍🏫 Horaires enseignants")
+        self.create_teacher_schedules_tab(teacher_frame)
+
         # Onglet Statistiques
         stats_frame = ttk.Frame(self.notebook)
         self.notebook.add(stats_frame, text="📊 Statistiques")
@@ -287,6 +292,55 @@ class SchedulerApp:
         vsb.pack(side=RIGHT, fill=Y)
         hsb.pack(side=BOTTOM, fill=X)
 
+    def create_teacher_schedules_tab(self, parent):
+        """Crée l'onglet des horaires des enseignants"""
+        # Frame pour sélecteur d'enseignant
+        selector_frame = ttk.Frame(parent)
+        selector_frame.pack(fill=X, padx=10, pady=10)
+
+        ttk.Label(selector_frame, text="Sélectionner un enseignant:", font=("Segoe UI", 11)).pack(side=LEFT, padx=(0, 10))
+
+        self.teacher_combobox = ttk.Combobox(selector_frame, state="readonly", width=30)
+        self.teacher_combobox.pack(side=LEFT, padx=(0, 10))
+        self.teacher_combobox.bind("<<ComboboxSelected>>", self.on_teacher_selected)
+
+        # Frame avec scrollbar pour l'horaire
+        tree_frame = ttk.Frame(parent)
+        tree_frame.pack(fill=BOTH, expand=YES, padx=10, pady=10)
+
+        # Treeview avec style
+        columns = ("Jour", "Période", "Cours", "Salle", "Étudiants")
+        self.teacher_tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show="headings",
+            bootstyle="success",
+            height=20
+        )
+
+        # Scrollbars
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.teacher_tree.yview)
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.teacher_tree.xview)
+        self.teacher_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        # Configuration des colonnes
+        self.teacher_tree.heading("Jour", text="📅 Jour")
+        self.teacher_tree.heading("Période", text="⏰ Période")
+        self.teacher_tree.heading("Cours", text="📚 Cours")
+        self.teacher_tree.heading("Salle", text="🏫 Salle")
+        self.teacher_tree.heading("Étudiants", text="👥 Étudiants")
+
+        self.teacher_tree.column("Jour", width=100, anchor=CENTER)
+        self.teacher_tree.column("Période", width=100, anchor=CENTER)
+        self.teacher_tree.column("Cours", width=300)
+        self.teacher_tree.column("Salle", width=250)
+        self.teacher_tree.column("Étudiants", width=200, anchor=CENTER)
+
+        # Pack
+        self.teacher_tree.pack(side=LEFT, fill=BOTH, expand=YES)
+        vsb.pack(side=RIGHT, fill=Y)
+        hsb.pack(side=BOTTOM, fill=X)
+
     def create_stats_tab(self, parent):
         """Crée l'onglet des statistiques"""
         self.stats_text = ScrolledText(
@@ -338,6 +392,7 @@ class SchedulerApp:
                 self.student_schedules = student_schedules
                 self.display_sessions()
                 self.populate_student_selector()
+                self.populate_teacher_selector()
                 self.display_statistics()
                 self.export_btn.config(state="normal")
                 self.status_var.set(f"✓ Horaire généré avec succès pour {num_students} étudiants!")
@@ -455,6 +510,66 @@ class SchedulerApp:
         self.individual_tree.tag_configure('evenrow', background='#f0f0f0')
         self.individual_tree.tag_configure('oddrow', background='white')
 
+    def populate_teacher_selector(self):
+        """Remplit le sélecteur d'enseignants"""
+        teacher_names = [f"{teacher.name}" for teacher in self.teachers]
+        self.teacher_combobox['values'] = teacher_names
+        if teacher_names:
+            self.teacher_combobox.current(0)
+            self.display_teacher_schedule(self.teachers[0].id)
+
+    def on_teacher_selected(self, event=None):
+        """Appelé quand un enseignant est sélectionné"""
+        if not self.teachers:
+            return
+
+        selected_index = self.teacher_combobox.current()
+        if selected_index >= 0:
+            teacher_id = self.teachers[selected_index].id
+            self.display_teacher_schedule(teacher_id)
+
+    def display_teacher_schedule(self, teacher_id: int):
+        """Affiche l'horaire d'un enseignant spécifique"""
+        # Vider le treeview
+        for item in self.teacher_tree.get_children():
+            self.teacher_tree.delete(item)
+
+        # Trouver toutes les sessions de cet enseignant
+        teacher_sessions = []
+        for session in self.sessions:
+            if session.assigned_teacher and session.assigned_teacher.id == teacher_id:
+                teacher_sessions.append(session)
+
+        # Trier par jour et période
+        teacher_sessions = sorted(teacher_sessions, key=lambda s: (s.timeslot.day, s.timeslot.period))
+
+        # Ajouter les sessions avec alternance de couleurs
+        for i, session in enumerate(teacher_sessions):
+            room_name = session.assigned_room.name if session.assigned_room else "N/A"
+            num_students = len(session.students)
+            student_list = ", ".join([f"#{s.id}" for s in session.students[:5]])  # Max 5 noms pour ne pas surcharger
+            if len(session.students) > 5:
+                student_list += f" (+{len(session.students) - 5} autres)"
+
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+
+            self.teacher_tree.insert(
+                "",
+                "end",
+                values=(
+                    f"Jour {session.timeslot.day}",
+                    f"Période {session.timeslot.period}",
+                    f"{session.course_type.value}",
+                    room_name,
+                    f"{num_students} étudiants"
+                ),
+                tags=(tag,)
+            )
+
+        # Configuration des tags pour l'alternance
+        self.teacher_tree.tag_configure('evenrow', background='#f0f0f0')
+        self.teacher_tree.tag_configure('oddrow', background='white')
+
     def display_statistics(self):
         """Affiche les statistiques"""
         self.stats_text.delete("1.0", "end")
@@ -489,6 +604,40 @@ class SchedulerApp:
         # Enseignants utilisés vs disponibles
         teachers_used = len(teacher_load)
         stats += f"\n   Enseignants utilisés: {teachers_used}/{len(self.teachers)}\n"
+
+        # Statistiques sur les salles préférées des enseignants
+        stats += "\n🏠 SALLES PRÉFÉRÉES DES ENSEIGNANTS\n"
+        stats += "─" * 60 + "\n"
+        teacher_home_stats = {}
+        for teacher in self.teachers:
+            if teacher.preferred_classroom:
+                in_home = 0
+                away = 0
+                for session in self.sessions:
+                    if session.assigned_teacher and session.assigned_teacher.id == teacher.id:
+                        if session.assigned_room and session.assigned_room.id == teacher.preferred_classroom.id:
+                            in_home += 1
+                        else:
+                            away += 1
+                if in_home + away > 0:
+                    teacher_home_stats[teacher.name] = {
+                        'home': in_home,
+                        'away': away,
+                        'preferred': teacher.preferred_classroom.name
+                    }
+
+        total_in_home = 0
+        total_away = 0
+        for teacher, data in sorted(teacher_home_stats.items()):
+            total = data['home'] + data['away']
+            percent = (data['home'] / total * 100) if total > 0 else 0
+            total_in_home += data['home']
+            total_away += data['away']
+            stats += f"   {teacher:<30} {data['preferred']:<12} {data['home']:>2}/{total:<2} ({percent:>5.1f}%)\n"
+
+        if total_in_home + total_away > 0:
+            overall_percent = (total_in_home / (total_in_home + total_away) * 100)
+            stats += f"\n   Total: {total_in_home}/{total_in_home + total_away} sessions en salle préférée ({overall_percent:.1f}%)\n"
 
         # Utilisation des salles
         stats += "\n🏫 UTILISATION DES SALLES (sessions)\n"

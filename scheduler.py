@@ -211,7 +211,35 @@ class ScheduleOptimizer:
             for timeslot in self.timeslots:
                 total_sessions.append(self.session_active[course_type][timeslot])
 
-        self.model.Minimize(sum(total_sessions))
+        # Objectif secondaire: Préférer que les enseignants restent dans leur salle préférée
+        # Compter combien de fois un enseignant est dans une salle qui n'est PAS sa salle préférée
+        away_from_home = []
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                for teacher in self.teachers:
+                    if course_type in teacher.can_teach and teacher.id in self.session_teacher[course_type][timeslot]:
+                        if teacher.preferred_classroom:
+                            # Créer une variable qui est 1 si: enseignant assigné ET salle != salle préférée
+                            for room in self.classrooms:
+                                if room.id != teacher.preferred_classroom.id:
+                                    # Variable temporaire: teacher assigned AND room assigned
+                                    both_assigned = self.model.NewBoolVar(
+                                        f'away_{course_type.name}_{timeslot.day}_{timeslot.period}_t{teacher.id}_r{room.id}'
+                                    )
+                                    # both_assigned == 1 ssi les deux sont vrais
+                                    self.model.AddMultiplicationEquality(
+                                        both_assigned,
+                                        [
+                                            self.session_teacher[course_type][timeslot][teacher.id],
+                                            self.session_room[course_type][timeslot][room.id]
+                                        ]
+                                    )
+                                    away_from_home.append(both_assigned)
+
+        # Objectif combiné: minimiser les sessions (priorité haute) + minimiser les changements de salle (priorité basse)
+        # Poids: 1000 pour les sessions, 1 pour les changements de salle
+        # Cela garantit qu'on minimise d'abord les sessions, puis on optimise les salles
+        self.model.Minimize(1000 * sum(total_sessions) + sum(away_from_home))
 
     def solve(self) -> Tuple[bool, List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
         """
