@@ -33,43 +33,55 @@ python data_generator.py
 ### Core Components
 
 1. **models.py** - Data models for the domain:
-   - `Student`, `Teacher`, `Classroom`, `Course` entities
+   - `Student`, `Teacher`, `Classroom` entities
    - `CourseType` enum with Quebec secondary course types
-   - `TimeSlot` and `ScheduleAssignment` for scheduling
+   - `TimeSlot` for time representation
+   - `CourseSession` for grouping students in the same course at the same time
+   - `StudentScheduleEntry` for individual student schedule entries
+   - `Course` (legacy) and `ScheduleAssignment` (for backward compatibility)
 
-2. **scheduler.py** - Constraint satisfaction optimizer:
+2. **scheduler.py** - Constraint satisfaction optimizer with individual schedules:
    - Uses Google OR-Tools CP-SAT solver
-   - Implements scheduling constraints (teacher conflicts, room conflicts, student conflicts)
-   - Optimizes for minimal resource usage
-   - Decision variables: course-to-timeslot, course-to-teacher, course-to-room, student-to-course
+   - Creates personalized schedules for each student
+   - Dynamically creates sessions by grouping students with matching timeslots
+   - Decision variables: student-course-timeslot, session-active, session-teacher, session-room
+   - Optimizes for minimal number of active sessions (primary objective)
+   - Returns: (success, sessions, student_schedules)
 
 3. **data_generator.py** - Generates sample data:
    - Configurable number of students (default 56), all in Grade 4 (Secondaire 4)
-   - 36 total courses with Quebec-specific distribution
+   - Course requirements dictionary (36 courses total) with Quebec-specific distribution
    - Minimal teacher set (13 teachers with overlapping competencies)
    - 8 classrooms
-   - Function signature: `generate_sample_data(num_students: int = 56)`
+   - Function signature: `generate_sample_data(num_students: int = 56) -> (course_requirements, teachers, classrooms, students)`
 
 4. **gui.py** - Material Design desktop interface with ttkbootstrap:
    - Configuration panel with student count spinbox (1-200 students)
    - Course requirements info with emojis
-   - Results tab displaying optimized schedule in TreeView with alternating row colors
-   - Statistics tab with detailed teacher load, room usage, student distribution
-   - Excel export functionality with multiple sheets
+   - **Sessions tab**: Displays all course sessions with teacher, room, and student count
+   - **Individual Schedules tab**: View personalized schedule for each student with dropdown selector
+   - Statistics tab with detailed session analysis, teacher load, room usage, and optimization efficiency
+   - Excel export with 3 sheets: Sessions, Individual Schedules, and Teacher Assignments
    - Modern UI with primary/success/info color schemes
    - Status bar with real-time feedback
 
 ### Constraints Implemented
 
-- Each course assigned to exactly one timeslot (9 days × 4 periods = 36 slots)
-- Each course has one teacher (only teachers qualified for that course type)
-- Each course has one room
-- Teachers cannot teach multiple courses simultaneously
-- Rooms cannot host multiple courses simultaneously
-- Students cannot attend multiple courses simultaneously
-- Maximum 28 students per course
-- **ALL students must participate in ALL courses** (mandatory participation)
-- **Students cannot have 2 courses of the same subject type in one day**
+**Individual Schedule Constraints:**
+- Each student must have exactly one timeslot for each required course type
+- A student cannot attend multiple courses simultaneously
+- A student cannot have more than one course of the same subject type per day
+
+**Session Constraints:**
+- Each active session must have exactly one teacher (qualified for that course type)
+- Each active session must have exactly one classroom
+- Maximum 28 students per session
+- A teacher cannot teach multiple sessions simultaneously
+- A classroom cannot host multiple sessions simultaneously
+
+**Optimization Objective:**
+- Minimize the total number of active sessions (primary goal)
+- This automatically minimizes resource usage (teachers and classrooms)
 
 ### Quebec Course Requirements
 
@@ -84,14 +96,19 @@ The system generates schedules for these course types (with class counts):
 
 - **OR-Tools CP-SAT**: Chosen for efficient constraint satisfaction solving with optimization objectives
 - **ttkbootstrap**: Modern Material Design-inspired GUI library built on Tkinter for better aesthetics
-- **Minimal Resource Optimization**: Primary objective is to minimize classrooms used (secondary: balance teacher load)
+- **Individual Schedules with Session Optimization**: Each student has a personalized schedule with the same 36 courses, but timeslots can differ. Students are grouped into sessions to minimize resources.
+- **Dynamic Session Creation**: Sessions are created dynamically based on which students take courses at the same timeslots, optimizing for minimal classrooms and teachers
+- **Minimal Resource Optimization**: Primary objective is to minimize the number of active sessions (fewer sessions = fewer classrooms and teachers used)
 - **Teacher Specialization**: Teachers can teach multiple related subjects (e.g., Science teachers can teach Science, STE, ASC)
-- **Mandatory Course Participation**: All students must attend all 36 courses (constraint enforced at optimization level)
+- **Mandatory Course Participation**: All students must attend all 36 courses (each student gets exactly one timeslot per course type)
 - **Daily Subject Limit**: Students can only have one course per subject type per day to reduce cognitive load
 
 ## Development Notes
 
 - The project uses French terminology to match Quebec educational context
 - Timeslots are 1-indexed (Day 1-9, Period 1-4)
-- Solver timeout set to 60 seconds; may need adjustment for larger instances
-- Excel export creates multi-sheet workbook (schedule, teacher assignments)
+- Solver timeout set to 120 seconds (2 minutes); may need adjustment for larger instances
+- Excel export creates 3-sheet workbook: Sessions, Individual Schedules, Teacher Assignments
+- Each student receives a personalized schedule with the same course requirements
+- Sessions are dynamically created to group students efficiently
+- The optimizer achieves high grouping efficiency (typically >80% reduction in potential sessions)

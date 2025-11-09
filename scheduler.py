@@ -1,259 +1,316 @@
 """
 Optimiseur d'horaires utilisant Google OR-Tools
+Nouvelle approche : horaires individuels par étudiant avec sessions de cours dynamiques
 """
 from ortools.sat.python import cp_model
 from typing import List, Dict, Tuple
-from models import Course, TimeSlot, Teacher, Classroom, Student, ScheduleAssignment
-import random
+from models import (CourseSession, TimeSlot, Teacher, Classroom, Student,
+                   CourseType, StudentScheduleEntry)
+from collections import defaultdict
 
 
 class ScheduleOptimizer:
-    """Optimise l'attribution des cours aux plages horaires, enseignants et salles"""
+    """Optimise l'attribution des cours avec horaires individuels par étudiant"""
 
-    def __init__(self, courses: List[Course], teachers: List[Teacher],
-                 classrooms: List[Classroom], students: List[Student]):
-        self.courses = courses
+    def __init__(self, teachers: List[Teacher], classrooms: List[Classroom],
+                 students: List[Student], course_requirements: Dict[CourseType, int]):
+        """
+        Args:
+            teachers: Liste des enseignants disponibles
+            classrooms: Liste des salles disponibles
+            students: Liste des étudiants
+            course_requirements: Dictionnaire {CourseType: nombre_de_cours}
+        """
         self.teachers = teachers
         self.classrooms = classrooms
         self.students = students
+        self.course_requirements = course_requirements  # Ex: {SCIENCE: 4, FRANCAIS: 6, ...}
         self.model = cp_model.CpModel()
         self.timeslots = [TimeSlot(day=d, period=p) for d in range(1, 10) for p in range(1, 5)]
 
         # Variables de décision
-        self.course_to_timeslot = {}
-        self.course_to_teacher = {}
-        self.course_to_room = {}
-        self.student_to_course = {}
+        self.student_course_timeslot = {}  # [student_id][course_type][course_num][timeslot]
+        self.session_active = {}  # [course_type][timeslot]
+        self.session_teacher = {}  # [course_type][timeslot][teacher_id]
+        self.session_room = {}  # [course_type][timeslot][room_id]
+        self.student_in_session = {}  # [student_id][course_type][course_num][timeslot]
 
     def create_variables(self):
         """Crée les variables de décision pour le modèle"""
-        # Pour chaque cours, assigner un créneau horaire
-        for course in self.courses:
-            self.course_to_timeslot[course.id] = {}
-            for timeslot in self.timeslots:
-                var_name = f'course_{course.id}_timeslot_{timeslot.day}_{timeslot.period}'
-                self.course_to_timeslot[course.id][timeslot] = self.model.NewBoolVar(var_name)
+        print("Création des variables de décision...")
 
-        # Pour chaque cours, assigner un enseignant
-        for course in self.courses:
-            self.course_to_teacher[course.id] = {}
-            for teacher in self.teachers:
-                if course.course_type in teacher.can_teach:
-                    var_name = f'course_{course.id}_teacher_{teacher.id}'
-                    self.course_to_teacher[course.id][teacher.id] = self.model.NewBoolVar(var_name)
-
-        # Pour chaque cours, assigner une salle
-        for course in self.courses:
-            self.course_to_room[course.id] = {}
-            for room in self.classrooms:
-                var_name = f'course_{course.id}_room_{room.id}'
-                self.course_to_room[course.id][room.id] = self.model.NewBoolVar(var_name)
-
-        # Pour chaque étudiant et cours, assigner ou non
+        # Pour chaque étudiant et chaque type de cours requis, assigner des timeslots
         for student in self.students:
-            self.student_to_course[student.id] = {}
-            for course in self.courses:
-                var_name = f'student_{student.id}_course_{course.id}'
-                self.student_to_course[student.id][course.id] = self.model.NewBoolVar(var_name)
+            self.student_course_timeslot[student.id] = {}
+            self.student_in_session[student.id] = {}
+
+            for course_type, num_courses in self.course_requirements.items():
+                self.student_course_timeslot[student.id][course_type] = {}
+                self.student_in_session[student.id][course_type] = {}
+
+                # Chaque étudiant doit suivre num_courses cours de ce type
+                for course_num in range(num_courses):
+                    self.student_course_timeslot[student.id][course_type][course_num] = {}
+                    self.student_in_session[student.id][course_type][course_num] = {}
+
+                    for timeslot in self.timeslots:
+                        var_name = f'student_{student.id}_type_{course_type.name}_num_{course_num}_ts_{timeslot.day}_{timeslot.period}'
+                        self.student_course_timeslot[student.id][course_type][course_num][timeslot] = \
+                            self.model.NewBoolVar(var_name)
+
+        # Variables pour les sessions de cours
+        for course_type in self.course_requirements.keys():
+            self.session_active[course_type] = {}
+            self.session_teacher[course_type] = {}
+            self.session_room[course_type] = {}
+
+            for timeslot in self.timeslots:
+                # Session active ou non
+                var_name = f'session_{course_type.name}_ts_{timeslot.day}_{timeslot.period}_active'
+                self.session_active[course_type][timeslot] = self.model.NewBoolVar(var_name)
+
+                # Enseignant pour cette session
+                self.session_teacher[course_type][timeslot] = {}
+                for teacher in self.teachers:
+                    if course_type in teacher.can_teach:
+                        var_name = f'session_{course_type.name}_ts_{timeslot.day}_{timeslot.period}_teacher_{teacher.id}'
+                        self.session_teacher[course_type][timeslot][teacher.id] = \
+                            self.model.NewBoolVar(var_name)
+
+                # Salle pour cette session
+                self.session_room[course_type][timeslot] = {}
+                for room in self.classrooms:
+                    var_name = f'session_{course_type.name}_ts_{timeslot.day}_{timeslot.period}_room_{room.id}'
+                    self.session_room[course_type][timeslot][room.id] = \
+                        self.model.NewBoolVar(var_name)
 
     def add_constraints(self):
         """Ajoute les contraintes au modèle"""
-        # Contrainte 1: Chaque cours doit être assigné à exactement un créneau
-        for course in self.courses:
-            self.model.AddExactlyOne(
-                [self.course_to_timeslot[course.id][ts] for ts in self.timeslots]
-            )
+        print("Ajout des contraintes...")
 
-        # Contrainte 2: Chaque cours doit avoir exactement un enseignant
-        for course in self.courses:
-            if self.course_to_teacher[course.id]:
-                self.model.AddExactlyOne(
-                    [self.course_to_teacher[course.id][teacher_id]
-                     for teacher_id in self.course_to_teacher[course.id]]
-                )
+        # Contrainte 1: Chaque étudiant doit avoir exactement un timeslot pour chaque cours requis
+        for student in self.students:
+            for course_type, num_courses in self.course_requirements.items():
+                for course_num in range(num_courses):
+                    self.model.AddExactlyOne([
+                        self.student_course_timeslot[student.id][course_type][course_num][ts]
+                        for ts in self.timeslots
+                    ])
 
-        # Contrainte 3: Chaque cours doit avoir exactement une salle
-        for course in self.courses:
-            self.model.AddExactlyOne(
-                [self.course_to_room[course.id][room_id]
-                 for room_id in self.course_to_room[course.id]]
-            )
+        # Contrainte 2: Un étudiant ne peut avoir qu'un seul cours à la fois
+        for student in self.students:
+            for timeslot in self.timeslots:
+                courses_at_this_time = []
+                for course_type, num_courses in self.course_requirements.items():
+                    for course_num in range(num_courses):
+                        courses_at_this_time.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+                # Au maximum un cours à ce timeslot
+                self.model.Add(sum(courses_at_this_time) <= 1)
 
-        # Contrainte 4: Un enseignant ne peut enseigner qu'un cours à la fois
+        # Contrainte 3: Lien entre présence d'étudiants et activation de session
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                students_in_session = []
+
+                for student in self.students:
+                    num_courses = self.course_requirements[course_type]
+                    for course_num in range(num_courses):
+                        students_in_session.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+
+                # Si au moins un étudiant, la session est active
+                if students_in_session:
+                    num_students = sum(students_in_session)
+                    # session_active == 1 ssi num_students >= 1
+                    self.model.Add(num_students >= 1).OnlyEnforceIf(self.session_active[course_type][timeslot])
+                    self.model.Add(num_students == 0).OnlyEnforceIf(self.session_active[course_type][timeslot].Not())
+
+        # Contrainte 4: Une session active doit avoir exactement un enseignant
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                if self.session_teacher[course_type][timeslot]:
+                    teacher_vars = list(self.session_teacher[course_type][timeslot].values())
+                    # Si session active, exactement un enseignant
+                    self.model.Add(sum(teacher_vars) == 1).OnlyEnforceIf(self.session_active[course_type][timeslot])
+                    # Si session inactive, aucun enseignant
+                    self.model.Add(sum(teacher_vars) == 0).OnlyEnforceIf(self.session_active[course_type][timeslot].Not())
+
+        # Contrainte 5: Une session active doit avoir exactement une salle
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                room_vars = list(self.session_room[course_type][timeslot].values())
+                # Si session active, exactement une salle
+                self.model.Add(sum(room_vars) == 1).OnlyEnforceIf(self.session_active[course_type][timeslot])
+                # Si session inactive, aucune salle
+                self.model.Add(sum(room_vars) == 0).OnlyEnforceIf(self.session_active[course_type][timeslot].Not())
+
+        # Contrainte 6: Un enseignant ne peut enseigner qu'une session à la fois
         for teacher in self.teachers:
             for timeslot in self.timeslots:
-                courses_for_teacher = []
-                for course in self.courses:
-                    if teacher.id in self.course_to_teacher[course.id]:
-                        # Ce cours est au créneau ET assigné à ce prof
-                        course_at_time_with_teacher = self.model.NewBoolVar(
-                            f'teacher_{teacher.id}_busy_{timeslot.day}_{timeslot.period}_course_{course.id}'
-                        )
-                        self.model.AddMultiplicationEquality(
-                            course_at_time_with_teacher,
-                            [self.course_to_timeslot[course.id][timeslot],
-                             self.course_to_teacher[course.id][teacher.id]]
-                        )
-                        courses_for_teacher.append(course_at_time_with_teacher)
+                sessions_with_teacher = []
+                for course_type in teacher.can_teach:
+                    if course_type in self.course_requirements:
+                        if teacher.id in self.session_teacher[course_type][timeslot]:
+                            sessions_with_teacher.append(
+                                self.session_teacher[course_type][timeslot][teacher.id]
+                            )
+                if sessions_with_teacher:
+                    self.model.Add(sum(sessions_with_teacher) <= 1)
 
-                if courses_for_teacher:
-                    self.model.Add(sum(courses_for_teacher) <= 1)
-
-        # Contrainte 5: Une salle ne peut être utilisée qu'une fois par créneau
+        # Contrainte 7: Une salle ne peut accueillir qu'une session à la fois
         for room in self.classrooms:
             for timeslot in self.timeslots:
-                courses_in_room = []
-                for course in self.courses:
-                    course_at_time_in_room = self.model.NewBoolVar(
-                        f'room_{room.id}_used_{timeslot.day}_{timeslot.period}_course_{course.id}'
-                    )
-                    self.model.AddMultiplicationEquality(
-                        course_at_time_in_room,
-                        [self.course_to_timeslot[course.id][timeslot],
-                         self.course_to_room[course.id][room.id]]
-                    )
-                    courses_in_room.append(course_at_time_in_room)
+                sessions_in_room = []
+                for course_type in self.course_requirements.keys():
+                    if room.id in self.session_room[course_type][timeslot]:
+                        sessions_in_room.append(
+                            self.session_room[course_type][timeslot][room.id]
+                        )
+                if sessions_in_room:
+                    self.model.Add(sum(sessions_in_room) <= 1)
 
-                self.model.Add(sum(courses_in_room) <= 1)
-
-        # Contrainte 6: Un étudiant ne peut suivre qu'un cours à la fois
-        for student in self.students:
+        # Contrainte 8: Maximum 28 étudiants par session
+        for course_type in self.course_requirements.keys():
             for timeslot in self.timeslots:
-                courses_for_student = []
-                for course in self.courses:
-                    student_in_course_at_time = self.model.NewBoolVar(
-                        f'student_{student.id}_at_{timeslot.day}_{timeslot.period}_course_{course.id}'
-                    )
-                    self.model.AddMultiplicationEquality(
-                        student_in_course_at_time,
-                        [self.course_to_timeslot[course.id][timeslot],
-                         self.student_to_course[student.id][course.id]]
-                    )
-                    courses_for_student.append(student_in_course_at_time)
+                students_in_session = []
+                for student in self.students:
+                    num_courses = self.course_requirements[course_type]
+                    for course_num in range(num_courses):
+                        students_in_session.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+                if students_in_session:
+                    self.model.Add(sum(students_in_session) <= 28)
 
-                self.model.Add(sum(courses_for_student) <= 1)
-
-        # Contrainte 7: Maximum 28 étudiants par cours
-        for course in self.courses:
-            students_in_course = [
-                self.student_to_course[student.id][course.id]
-                for student in self.students
-            ]
-            self.model.Add(sum(students_in_course) <= course.max_students)
-
-        # Contrainte 8: TOUS les étudiants doivent participer à TOUS les cours
-        for course in self.courses:
-            for student in self.students:
-                self.model.Add(self.student_to_course[student.id][course.id] == 1)
-
-        # Contrainte 9: Un étudiant ne peut pas avoir 2 cours de la même matière dans une journée
+        # Contrainte 9: Un étudiant ne peut avoir qu'un cours de la même matière par jour
         for student in self.students:
             for day in range(1, 10):  # 9 jours
-                # Grouper les cours par type
-                course_types_in_day = {}
-                for course in self.courses:
-                    if course.course_type not in course_types_in_day:
-                        course_types_in_day[course.course_type] = []
-
-                    # Vérifier si ce cours est dans cette journée pour cet étudiant
-                    for period in range(1, 5):  # 4 périodes
-                        timeslot = TimeSlot(day=day, period=period)
-                        course_on_day = self.model.NewBoolVar(
-                            f'student_{student.id}_course_{course.id}_day_{day}_period_{period}'
-                        )
-                        self.model.AddMultiplicationEquality(
-                            course_on_day,
-                            [self.course_to_timeslot[course.id][timeslot],
-                             self.student_to_course[student.id][course.id]]
-                        )
-                        course_types_in_day[course.course_type].append(course_on_day)
-
-                # Pour chaque type de cours, max 1 par jour pour cet étudiant
-                for course_type, course_vars in course_types_in_day.items():
-                    self.model.Add(sum(course_vars) <= 1)
+                for course_type, num_courses in self.course_requirements.items():
+                    courses_on_this_day = []
+                    for course_num in range(num_courses):
+                        for period in range(1, 5):  # 4 périodes
+                            timeslot = TimeSlot(day=day, period=period)
+                            courses_on_this_day.append(
+                                self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                            )
+                    # Maximum 1 cours de ce type ce jour
+                    if courses_on_this_day:
+                        self.model.Add(sum(courses_on_this_day) <= 1)
 
     def add_optimization_objectives(self):
         """Ajoute des objectifs d'optimisation"""
-        # Objectif: Équilibrer le nombre d'étudiants par cours
-        variance_terms = []
-        for course in self.courses:
-            num_students = sum(
-                self.student_to_course[student.id][course.id]
-                for student in self.students
-            )
-            # On veut que chaque cours ait environ 75/38 ≈ 2 étudiants
-            # mais comme certains cours doivent être suivis par plus d'étudiants,
-            # on minimise simplement la variance
-            variance_terms.append(num_students)
+        print("Ajout des objectifs d'optimisation...")
 
-        # Minimiser l'utilisation de salles différentes (préférer réutiliser)
-        room_usage = []
-        for room in self.classrooms:
-            room_used = self.model.NewBoolVar(f'room_{room.id}_used')
-            for course in self.courses:
-                self.model.Add(room_used >= self.course_to_room[course.id][room.id])
-            room_usage.append(room_used)
+        # Objectif principal: Minimiser le nombre de sessions actives
+        # (moins de sessions = moins de salles et d'enseignants utilisés)
+        total_sessions = []
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                total_sessions.append(self.session_active[course_type][timeslot])
 
-        # Objectif combiné: maximiser l'équilibre et minimiser les salles
-        self.model.Minimize(sum(room_usage))
+        self.model.Minimize(sum(total_sessions))
 
-    def solve(self) -> Tuple[bool, List[ScheduleAssignment]]:
-        """Résout le problème d'optimisation"""
+    def solve(self) -> Tuple[bool, List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
+        """
+        Résout le problème d'optimisation
+
+        Returns:
+            (success, sessions, student_schedules)
+            - success: True si une solution a été trouvée
+            - sessions: Liste des sessions de cours créées
+            - student_schedules: Dict {student_id: [StudentScheduleEntry]}
+        """
         self.create_variables()
         self.add_constraints()
         self.add_optimization_objectives()
 
+        print("Lancement du solveur...")
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 60.0
+        solver.parameters.max_time_in_seconds = 120.0  # Augmenté à 2 minutes
         solver.parameters.num_search_workers = 8
+        solver.parameters.log_search_progress = True
 
         status = solver.Solve(self.model)
 
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-            assignments = self.extract_solution(solver)
-            return True, assignments
+            print(f"Solution trouvée ! Statut: {'OPTIMAL' if status == cp_model.OPTIMAL else 'FEASIBLE'}")
+            sessions, student_schedules = self.extract_solution(solver)
+            return True, sessions, student_schedules
         else:
-            return False, []
+            print(f"Aucune solution trouvée. Statut: {status}")
+            return False, [], {}
 
-    def extract_solution(self, solver: cp_model.CpSolver) -> List[ScheduleAssignment]:
+    def extract_solution(self, solver: cp_model.CpSolver) -> Tuple[List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
         """Extrait la solution du solveur"""
-        assignments = []
+        print("Extraction de la solution...")
 
-        for course in self.courses:
-            # Trouver le créneau assigné
-            assigned_timeslot = None
+        sessions = []
+        session_id = 0
+        session_map = {}  # {(course_type, timeslot): CourseSession}
+
+        # Créer les sessions de cours
+        for course_type in self.course_requirements.keys():
             for timeslot in self.timeslots:
-                if solver.Value(self.course_to_timeslot[course.id][timeslot]):
-                    assigned_timeslot = timeslot
-                    break
+                if solver.Value(self.session_active[course_type][timeslot]):
+                    # Trouver l'enseignant assigné
+                    assigned_teacher = None
+                    for teacher in self.teachers:
+                        if teacher.id in self.session_teacher[course_type][timeslot]:
+                            if solver.Value(self.session_teacher[course_type][timeslot][teacher.id]):
+                                assigned_teacher = teacher
+                                break
 
-            # Trouver l'enseignant assigné
-            assigned_teacher = None
-            for teacher in self.teachers:
-                if teacher.id in self.course_to_teacher[course.id]:
-                    if solver.Value(self.course_to_teacher[course.id][teacher.id]):
-                        assigned_teacher = teacher
-                        break
+                    # Trouver la salle assignée
+                    assigned_room = None
+                    for room in self.classrooms:
+                        if solver.Value(self.session_room[course_type][timeslot][room.id]):
+                            assigned_room = room
+                            break
 
-            # Trouver la salle assignée
-            assigned_room = None
-            for room in self.classrooms:
-                if solver.Value(self.course_to_room[course.id][room.id]):
-                    assigned_room = room
-                    break
+                    # Créer la session
+                    session = CourseSession(
+                        id=session_id,
+                        course_type=course_type,
+                        timeslot=timeslot,
+                        assigned_teacher=assigned_teacher,
+                        assigned_room=assigned_room,
+                        students=[]
+                    )
+                    sessions.append(session)
+                    session_map[(course_type, timeslot)] = session
+                    session_id += 1
 
-            # Trouver les étudiants assignés
-            assigned_students = []
-            for student in self.students:
-                if solver.Value(self.student_to_course[student.id][course.id]):
-                    assigned_students.append(student)
+        # Créer les horaires individuels des étudiants et peupler les sessions
+        student_schedules = {}
+        for student in self.students:
+            schedule_entries = []
 
-            # Mettre à jour le cours
-            course.assigned_teacher = assigned_teacher
-            course.assigned_room = assigned_room
-            course.assigned_students = assigned_students
+            for course_type, num_courses in self.course_requirements.items():
+                for course_num in range(num_courses):
+                    # Trouver le timeslot assigné pour ce cours
+                    for timeslot in self.timeslots:
+                        if solver.Value(self.student_course_timeslot[student.id][course_type][course_num][timeslot]):
+                            # Trouver la session correspondante
+                            session = session_map.get((course_type, timeslot))
+                            if session:
+                                session.students.append(student)
 
-            if assigned_timeslot:
-                assignments.append(ScheduleAssignment(course, assigned_timeslot))
+                            entry = StudentScheduleEntry(
+                                course_type=course_type,
+                                timeslot=timeslot,
+                                session=session
+                            )
+                            schedule_entries.append(entry)
+                            break
 
-        return sorted(assignments, key=lambda x: (x.timeslot.day, x.timeslot.period))
+            student_schedules[student.id] = sorted(schedule_entries,
+                                                   key=lambda x: (x.timeslot.day, x.timeslot.period))
+
+        # Trier les sessions par timeslot
+        sessions = sorted(sessions, key=lambda x: (x.timeslot.day, x.timeslot.period))
+
+        print(f"Solution extraite: {len(sessions)} sessions créées pour {len(self.students)} étudiants")
+        return sessions, student_schedules

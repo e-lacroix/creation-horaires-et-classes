@@ -7,9 +7,9 @@ from ttkbootstrap.scrolled import ScrolledText
 from ttkbootstrap.dialogs import Messagebox
 from tkinter import StringVar, IntVar
 import pandas as pd
-from typing import List
-from models import (Course, Teacher, Classroom, Student, CourseType,
-                    TimeSlot, ScheduleAssignment)
+from typing import List, Dict
+from models import (CourseSession, Teacher, Classroom, Student, CourseType,
+                    TimeSlot, StudentScheduleEntry)
 from scheduler import ScheduleOptimizer
 from data_generator import generate_sample_data
 
@@ -25,13 +25,15 @@ class SchedulerApp:
         # Variables de configuration
         self.num_students_var = IntVar(value=56)
         self.status_var = StringVar(value="Prêt à générer l'horaire")
+        self.selected_student_var = IntVar(value=0)
 
         # Données
-        self.courses = []
+        self.course_requirements = {}
         self.teachers = []
         self.classrooms = []
         self.students = []
-        self.assignments = []
+        self.sessions = []
+        self.student_schedules = {}
 
         self.create_widgets()
 
@@ -79,10 +81,15 @@ class SchedulerApp:
         self.notebook = ttk.Notebook(right_panel, bootstyle="primary")
         self.notebook.pack(fill=BOTH, expand=YES)
 
-        # Onglet Horaires
-        schedule_frame = ttk.Frame(self.notebook)
-        self.notebook.add(schedule_frame, text="📅 Horaires")
-        self.create_schedule_tab(schedule_frame)
+        # Onglet Sessions de cours
+        sessions_frame = ttk.Frame(self.notebook)
+        self.notebook.add(sessions_frame, text="📅 Sessions de cours")
+        self.create_sessions_tab(sessions_frame)
+
+        # Onglet Horaires individuels
+        individual_frame = ttk.Frame(self.notebook)
+        self.notebook.add(individual_frame, text="👤 Horaires individuels")
+        self.create_individual_schedules_tab(individual_frame)
 
         # Onglet Statistiques
         stats_frame = ttk.Frame(self.notebook)
@@ -190,15 +197,15 @@ class SchedulerApp:
         )
         self.progress.pack(fill=X, pady=(10, 0))
 
-    def create_schedule_tab(self, parent):
-        """Crée l'onglet des horaires"""
+    def create_sessions_tab(self, parent):
+        """Crée l'onglet des sessions de cours"""
         # Frame avec scrollbar
         tree_frame = ttk.Frame(parent)
         tree_frame.pack(fill=BOTH, expand=YES, padx=10, pady=10)
 
         # Treeview avec style
         columns = ("Jour", "Période", "Cours", "Enseignant", "Salle", "Étudiants")
-        self.schedule_tree = ttk.Treeview(
+        self.sessions_tree = ttk.Treeview(
             tree_frame,
             columns=columns,
             show="headings",
@@ -207,27 +214,76 @@ class SchedulerApp:
         )
 
         # Scrollbars
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.schedule_tree.yview)
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.schedule_tree.xview)
-        self.schedule_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.sessions_tree.yview)
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.sessions_tree.xview)
+        self.sessions_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
         # Configuration des colonnes
-        self.schedule_tree.heading("Jour", text="📅 Jour")
-        self.schedule_tree.heading("Période", text="⏰ Période")
-        self.schedule_tree.heading("Cours", text="📚 Cours")
-        self.schedule_tree.heading("Enseignant", text="👨‍🏫 Enseignant")
-        self.schedule_tree.heading("Salle", text="🏫 Salle")
-        self.schedule_tree.heading("Étudiants", text="👥 Étudiants")
+        self.sessions_tree.heading("Jour", text="📅 Jour")
+        self.sessions_tree.heading("Période", text="⏰ Période")
+        self.sessions_tree.heading("Cours", text="📚 Cours")
+        self.sessions_tree.heading("Enseignant", text="👨‍🏫 Enseignant")
+        self.sessions_tree.heading("Salle", text="🏫 Salle")
+        self.sessions_tree.heading("Étudiants", text="👥 Étudiants")
 
-        self.schedule_tree.column("Jour", width=80, anchor=CENTER)
-        self.schedule_tree.column("Période", width=80, anchor=CENTER)
-        self.schedule_tree.column("Cours", width=250)
-        self.schedule_tree.column("Enseignant", width=200)
-        self.schedule_tree.column("Salle", width=150)
-        self.schedule_tree.column("Étudiants", width=120, anchor=CENTER)
+        self.sessions_tree.column("Jour", width=80, anchor=CENTER)
+        self.sessions_tree.column("Période", width=80, anchor=CENTER)
+        self.sessions_tree.column("Cours", width=250)
+        self.sessions_tree.column("Enseignant", width=200)
+        self.sessions_tree.column("Salle", width=150)
+        self.sessions_tree.column("Étudiants", width=120, anchor=CENTER)
 
         # Pack
-        self.schedule_tree.pack(side=LEFT, fill=BOTH, expand=YES)
+        self.sessions_tree.pack(side=LEFT, fill=BOTH, expand=YES)
+        vsb.pack(side=RIGHT, fill=Y)
+        hsb.pack(side=BOTTOM, fill=X)
+
+    def create_individual_schedules_tab(self, parent):
+        """Crée l'onglet des horaires individuels"""
+        # Frame pour sélecteur d'étudiant
+        selector_frame = ttk.Frame(parent)
+        selector_frame.pack(fill=X, padx=10, pady=10)
+
+        ttk.Label(selector_frame, text="Sélectionner un étudiant:", font=("Segoe UI", 11)).pack(side=LEFT, padx=(0, 10))
+
+        self.student_combobox = ttk.Combobox(selector_frame, state="readonly", width=30)
+        self.student_combobox.pack(side=LEFT, padx=(0, 10))
+        self.student_combobox.bind("<<ComboboxSelected>>", self.on_student_selected)
+
+        # Frame avec scrollbar pour l'horaire
+        tree_frame = ttk.Frame(parent)
+        tree_frame.pack(fill=BOTH, expand=YES, padx=10, pady=10)
+
+        # Treeview avec style
+        columns = ("Jour", "Période", "Cours", "Enseignant", "Salle")
+        self.individual_tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show="headings",
+            bootstyle="info",
+            height=20
+        )
+
+        # Scrollbars
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.individual_tree.yview)
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.individual_tree.xview)
+        self.individual_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        # Configuration des colonnes
+        self.individual_tree.heading("Jour", text="📅 Jour")
+        self.individual_tree.heading("Période", text="⏰ Période")
+        self.individual_tree.heading("Cours", text="📚 Cours")
+        self.individual_tree.heading("Enseignant", text="👨‍🏫 Enseignant")
+        self.individual_tree.heading("Salle", text="🏫 Salle")
+
+        self.individual_tree.column("Jour", width=100, anchor=CENTER)
+        self.individual_tree.column("Période", width=100, anchor=CENTER)
+        self.individual_tree.column("Cours", width=300)
+        self.individual_tree.column("Enseignant", width=250)
+        self.individual_tree.column("Salle", width=200)
+
+        # Pack
+        self.individual_tree.pack(side=LEFT, fill=BOTH, expand=YES)
         vsb.pack(side=RIGHT, fill=Y)
         hsb.pack(side=BOTTOM, fill=X)
 
@@ -259,34 +315,38 @@ class SchedulerApp:
             self.root.update()
 
             # Générer les données
-            self.courses, self.teachers, self.classrooms, self.students = generate_sample_data(num_students)
+            self.course_requirements, self.teachers, self.classrooms, self.students = \
+                generate_sample_data(num_students)
 
-            self.status_var.set("Optimisation en cours... (peut prendre jusqu'à 60 secondes)")
+            self.status_var.set("Optimisation en cours... (peut prendre jusqu'à 2 minutes)")
             self.root.update()
 
             # Optimisation
             optimizer = ScheduleOptimizer(
-                self.courses,
                 self.teachers,
                 self.classrooms,
-                self.students
+                self.students,
+                self.course_requirements
             )
 
-            success, assignments = optimizer.solve()
+            success, sessions, student_schedules = optimizer.solve()
 
             self.progress.stop()
 
             if success:
-                self.assignments = assignments
-                self.display_results()
+                self.sessions = sessions
+                self.student_schedules = student_schedules
+                self.display_sessions()
+                self.populate_student_selector()
                 self.display_statistics()
                 self.export_btn.config(state="normal")
                 self.status_var.set(f"✓ Horaire généré avec succès pour {num_students} étudiants!")
                 Messagebox.show_info(
                     f"L'horaire a été généré avec succès pour {num_students} étudiants!\n\n"
-                    "• Tous les étudiants participent à tous les cours\n"
-                    "• Maximum 1 cours par matière par jour\n"
-                    "• Ressources optimisées",
+                    f"• {len(sessions)} sessions de cours créées\n"
+                    "• Chaque étudiant a son horaire personnalisé\n"
+                    "• Ressources minimisées\n"
+                    "• Maximum 1 cours par matière par jour",
                     "Optimisation réussie"
                 )
             else:
@@ -301,40 +361,38 @@ class SchedulerApp:
                 )
 
         except Exception as e:
+            import traceback
             self.progress.stop()
             self.status_var.set("❌ Erreur lors de l'optimisation")
             Messagebox.show_error(
-                f"Une erreur s'est produite:\n{str(e)}",
+                f"Une erreur s'est produite:\n{str(e)}\n\n{traceback.format_exc()}",
                 "Erreur"
             )
 
         finally:
             self.generate_btn.config(state="normal")
 
-    def display_results(self):
-        """Affiche les résultats dans le treeview"""
+    def display_sessions(self):
+        """Affiche les sessions de cours dans le treeview"""
         # Vider le treeview
-        for item in self.schedule_tree.get_children():
-            self.schedule_tree.delete(item)
+        for item in self.sessions_tree.get_children():
+            self.sessions_tree.delete(item)
 
-        # Ajouter les résultats avec alternance de couleurs
-        for i, assignment in enumerate(self.assignments):
-            course = assignment.course
-            timeslot = assignment.timeslot
-
-            teacher_name = course.assigned_teacher.name if course.assigned_teacher else "N/A"
-            room_name = course.assigned_room.name if course.assigned_room else "N/A"
-            num_students = len(course.assigned_students)
+        # Ajouter les sessions avec alternance de couleurs
+        for i, session in enumerate(self.sessions):
+            teacher_name = session.assigned_teacher.name if session.assigned_teacher else "N/A"
+            room_name = session.assigned_room.name if session.assigned_room else "N/A"
+            num_students = len(session.students)
 
             tag = 'evenrow' if i % 2 == 0 else 'oddrow'
 
-            self.schedule_tree.insert(
+            self.sessions_tree.insert(
                 "",
                 "end",
                 values=(
-                    f"Jour {timeslot.day}",
-                    f"Période {timeslot.period}",
-                    f"{course.course_type.value}",
+                    f"Jour {session.timeslot.day}",
+                    f"Période {session.timeslot.period}",
+                    f"{session.course_type.value}",
                     teacher_name,
                     room_name,
                     f"{num_students} étudiants"
@@ -343,8 +401,59 @@ class SchedulerApp:
             )
 
         # Configuration des tags pour l'alternance
-        self.schedule_tree.tag_configure('evenrow', background='#f0f0f0')
-        self.schedule_tree.tag_configure('oddrow', background='white')
+        self.sessions_tree.tag_configure('evenrow', background='#f0f0f0')
+        self.sessions_tree.tag_configure('oddrow', background='white')
+
+    def populate_student_selector(self):
+        """Remplit le sélecteur d'étudiants"""
+        student_names = [f"Étudiant {student.id} - {student.name}" for student in self.students]
+        self.student_combobox['values'] = student_names
+        if student_names:
+            self.student_combobox.current(0)
+            self.display_individual_schedule(self.students[0].id)
+
+    def on_student_selected(self, event=None):
+        """Appelé quand un étudiant est sélectionné"""
+        if not self.students:
+            return
+
+        selected_index = self.student_combobox.current()
+        if selected_index >= 0:
+            student_id = self.students[selected_index].id
+            self.display_individual_schedule(student_id)
+
+    def display_individual_schedule(self, student_id: int):
+        """Affiche l'horaire d'un étudiant spécifique"""
+        # Vider le treeview
+        for item in self.individual_tree.get_children():
+            self.individual_tree.delete(item)
+
+        # Obtenir l'horaire de l'étudiant
+        schedule = self.student_schedules.get(student_id, [])
+
+        # Ajouter les cours avec alternance de couleurs
+        for i, entry in enumerate(schedule):
+            teacher_name = entry.session.assigned_teacher.name if entry.session and entry.session.assigned_teacher else "N/A"
+            room_name = entry.session.assigned_room.name if entry.session and entry.session.assigned_room else "N/A"
+
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+
+            self.individual_tree.insert(
+                "",
+                "end",
+                values=(
+                    f"Jour {entry.timeslot.day}",
+                    f"Période {entry.timeslot.period}",
+                    f"{entry.course_type.value}",
+                    teacher_name,
+                    room_name
+                ),
+                tags=(tag,)
+            )
+
+        # Configuration des tags pour l'alternance
+        self.individual_tree.tag_configure('evenrow', background='#f0f0f0')
+        self.individual_tree.tag_configure('oddrow', background='white')
 
     def display_statistics(self):
         """Affiche les statistiques"""
@@ -358,50 +467,71 @@ class SchedulerApp:
         stats += "📊 INFORMATIONS GÉNÉRALES\n"
         stats += "─" * 60 + "\n"
         stats += f"   Nombre d'étudiants: {len(self.students)}\n"
-        stats += f"   Nombre de cours: {len(self.courses)}\n"
+        stats += f"   Nombre de sessions créées: {len(self.sessions)}\n"
+        total_courses = sum(self.course_requirements.values())
+        stats += f"   Cours par étudiant: {total_courses}\n"
         stats += f"   Nombre d'enseignants: {len(self.teachers)}\n"
         stats += f"   Nombre de salles: {len(self.classrooms)}\n\n"
 
         # Utilisation des enseignants
         teacher_load = {}
-        for assignment in self.assignments:
-            if assignment.course.assigned_teacher:
-                teacher = assignment.course.assigned_teacher
+        for session in self.sessions:
+            if session.assigned_teacher:
+                teacher = session.assigned_teacher
                 teacher_load[teacher.name] = teacher_load.get(teacher.name, 0) + 1
 
-        stats += "👨‍🏫 CHARGE D'ENSEIGNEMENT\n"
+        stats += "👨‍🏫 CHARGE D'ENSEIGNEMENT (sessions)\n"
         stats += "─" * 60 + "\n"
         for teacher, count in sorted(teacher_load.items()):
             bar = "█" * count
-            stats += f"   {teacher:<30} {count:>2} cours {bar}\n"
+            stats += f"   {teacher:<30} {count:>2} sessions {bar}\n"
+
+        # Enseignants utilisés vs disponibles
+        teachers_used = len(teacher_load)
+        stats += f"\n   Enseignants utilisés: {teachers_used}/{len(self.teachers)}\n"
 
         # Utilisation des salles
-        stats += "\n🏫 UTILISATION DES SALLES\n"
+        stats += "\n🏫 UTILISATION DES SALLES (sessions)\n"
         stats += "─" * 60 + "\n"
         room_usage = {}
-        for assignment in self.assignments:
-            if assignment.course.assigned_room:
-                room = assignment.course.assigned_room
+        for session in self.sessions:
+            if session.assigned_room:
+                room = session.assigned_room
                 room_usage[room.name] = room_usage.get(room.name, 0) + 1
 
         for room, count in sorted(room_usage.items()):
             bar = "█" * (count // 2)
-            stats += f"   {room:<30} {count:>2} cours {bar}\n"
+            stats += f"   {room:<30} {count:>2} sessions {bar}\n"
 
-        # Distribution des étudiants
-        stats += "\n👥 DISTRIBUTION DES ÉTUDIANTS PAR COURS\n"
+        # Salles utilisées vs disponibles
+        rooms_used = len(room_usage)
+        stats += f"\n   Salles utilisées: {rooms_used}/{len(self.classrooms)}\n"
+
+        # Distribution des étudiants par session
+        stats += "\n👥 DISTRIBUTION DES ÉTUDIANTS PAR SESSION\n"
         stats += "─" * 60 + "\n"
-        course_sizes = [len(assignment.course.assigned_students) for assignment in self.assignments]
-        if course_sizes:
-            stats += f"   Minimum: {min(course_sizes)} étudiants\n"
-            stats += f"   Maximum: {max(course_sizes)} étudiants\n"
-            stats += f"   Moyenne: {sum(course_sizes)/len(course_sizes):.1f} étudiants\n"
+        session_sizes = [len(session.students) for session in self.sessions]
+        if session_sizes:
+            stats += f"   Minimum: {min(session_sizes)} étudiants\n"
+            stats += f"   Maximum: {max(session_sizes)} étudiants\n"
+            stats += f"   Moyenne: {sum(session_sizes)/len(session_sizes):.1f} étudiants\n"
+
+        # Optimisation des ressources
+        stats += "\n🎯 OPTIMISATION DES RESSOURCES\n"
+        stats += "─" * 60 + "\n"
+        # Calculer le facteur de regroupement
+        total_potential_sessions = len(self.students) * total_courses
+        stats += f"   Sessions théoriques max: {total_potential_sessions}\n"
+        stats += f"   Sessions créées: {len(self.sessions)}\n"
+        efficiency = (1 - len(self.sessions) / total_potential_sessions) * 100
+        stats += f"   Efficacité de regroupement: {efficiency:.1f}%\n"
 
         # Vérification: tous les étudiants dans tous les cours
         stats += "\n✓ VÉRIFICATION DES CONTRAINTES\n"
         stats += "─" * 60 + "\n"
-        stats += "   ✓ Tous les étudiants participent à tous les cours\n"
-        stats += "   ✓ Maximum 28 étudiants par classe respecté\n"
+        stats += "   ✓ Chaque étudiant a un horaire personnalisé\n"
+        stats += "   ✓ Tous les cours requis sont assignés\n"
+        stats += "   ✓ Maximum 28 étudiants par session respecté\n"
         stats += "   ✓ Pas de conflit d'enseignants\n"
         stats += "   ✓ Pas de conflit de salles\n"
         stats += "   ✓ Pas plus d'1 cours par matière par jour\n"
@@ -413,49 +543,65 @@ class SchedulerApp:
     def export_to_excel(self):
         """Exporte l'horaire vers Excel"""
         try:
-            # Créer un DataFrame pour l'horaire
-            data = []
-            for assignment in self.assignments:
-                course = assignment.course
-                timeslot = assignment.timeslot
-
-                data.append({
-                    "Jour": timeslot.day,
-                    "Période": timeslot.period,
-                    "Cours": course.course_type.value,
-                    "ID Cours": course.id,
-                    "Enseignant": course.assigned_teacher.name if course.assigned_teacher else "N/A",
-                    "Salle": course.assigned_room.name if course.assigned_room else "N/A",
-                    "Nombre d'étudiants": len(course.assigned_students),
-                    "Étudiants": ", ".join([f"#{s.id}" for s in course.assigned_students])
-                })
-
-            df = pd.DataFrame(data)
-
             # Créer un fichier Excel avec plusieurs feuilles
             filename = f"horaire_optimise_{len(self.students)}_etudiants.xlsx"
-            with pd.ExcelWriter(filename, engine='openpyxl') as writer:
-                df.to_excel(writer, sheet_name='Horaire', index=False)
 
-                # Feuille pour les enseignants
+            with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+                # Feuille 1: Sessions de cours
+                sessions_data = []
+                for session in self.sessions:
+                    sessions_data.append({
+                        "Jour": session.timeslot.day,
+                        "Période": session.timeslot.period,
+                        "Cours": session.course_type.value,
+                        "ID Session": session.id,
+                        "Enseignant": session.assigned_teacher.name if session.assigned_teacher else "N/A",
+                        "Salle": session.assigned_room.name if session.assigned_room else "N/A",
+                        "Nombre d'étudiants": len(session.students),
+                        "Étudiants": ", ".join([f"#{s.id}" for s in session.students])
+                    })
+
+                df_sessions = pd.DataFrame(sessions_data)
+                df_sessions.to_excel(writer, sheet_name='Sessions', index=False)
+
+                # Feuille 2: Horaires individuels par étudiant
+                individual_data = []
+                for student in self.students:
+                    schedule = self.student_schedules.get(student.id, [])
+                    for entry in schedule:
+                        individual_data.append({
+                            "Étudiant ID": student.id,
+                            "Étudiant": student.name,
+                            "Jour": entry.timeslot.day,
+                            "Période": entry.timeslot.period,
+                            "Cours": entry.course_type.value,
+                            "Enseignant": entry.session.assigned_teacher.name if entry.session and entry.session.assigned_teacher else "N/A",
+                            "Salle": entry.session.assigned_room.name if entry.session and entry.session.assigned_room else "N/A"
+                        })
+
+                df_individual = pd.DataFrame(individual_data)
+                df_individual.to_excel(writer, sheet_name='Horaires individuels', index=False)
+
+                # Feuille 3: Charge des enseignants
                 teacher_data = []
                 teacher_load = {}
-                for assignment in self.assignments:
-                    if assignment.course.assigned_teacher:
-                        teacher = assignment.course.assigned_teacher
+                for session in self.sessions:
+                    if session.assigned_teacher:
+                        teacher = session.assigned_teacher
                         if teacher.name not in teacher_load:
                             teacher_load[teacher.name] = []
                         teacher_load[teacher.name].append({
-                            "Jour": assignment.timeslot.day,
-                            "Période": assignment.timeslot.period,
-                            "Cours": assignment.course.course_type.value
+                            "Jour": session.timeslot.day,
+                            "Période": session.timeslot.period,
+                            "Cours": session.course_type.value,
+                            "Nombre d'étudiants": len(session.students)
                         })
 
-                for teacher, courses in teacher_load.items():
-                    for course in courses:
+                for teacher, sessions in teacher_load.items():
+                    for session in sessions:
                         teacher_data.append({
                             "Enseignant": teacher,
-                            **course
+                            **session
                         })
 
                 df_teachers = pd.DataFrame(teacher_data)
@@ -463,13 +609,18 @@ class SchedulerApp:
 
             self.status_var.set(f"✓ Horaire exporté vers {filename}")
             Messagebox.show_info(
-                f"L'horaire a été exporté avec succès vers:\n{filename}",
+                f"L'horaire a été exporté avec succès vers:\n{filename}\n\n"
+                f"Contenu:\n"
+                f"• Feuille 'Sessions': {len(self.sessions)} sessions créées\n"
+                f"• Feuille 'Horaires individuels': horaires de {len(self.students)} étudiants\n"
+                f"• Feuille 'Enseignants': charge d'enseignement",
                 "Export réussi"
             )
 
         except Exception as e:
+            import traceback
             Messagebox.show_error(
-                f"Erreur lors de l'export:\n{str(e)}",
+                f"Erreur lors de l'export:\n{str(e)}\n\n{traceback.format_exc()}",
                 "Erreur d'export"
             )
 

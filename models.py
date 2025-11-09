@@ -89,7 +89,33 @@ class TimeSlot:
 
 
 @dataclass
+class CourseSession:
+    """Représente une session de cours (regroupement d'étudiants au même moment)"""
+    id: int
+    course_type: CourseType
+    timeslot: TimeSlot
+    assigned_teacher: Optional[Teacher] = None
+    assigned_room: Optional[Classroom] = None
+    students: List[Student] = None
+
+    def __post_init__(self):
+        if self.students is None:
+            self.students = []
+
+    def __hash__(self):
+        return hash(self.id)
+
+
+@dataclass
+class StudentScheduleEntry:
+    """Représente une entrée dans l'horaire d'un étudiant"""
+    course_type: CourseType
+    timeslot: TimeSlot
+    session: Optional['CourseSession'] = None
+
+
+@dataclass
 class ScheduleAssignment:
-    """Représente une assignation d'horaire"""
+    """Représente une assignation d'horaire (pour rétrocompatibilité)"""
     course: Course
     timeslot: TimeSlot

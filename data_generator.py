@@ -1,21 +1,46 @@
 """
 Génère des données d'exemple pour le système d'horaires
 """
-from typing import List, Tuple
-from models import Course, Teacher, Classroom, Student, CourseType
+from typing import List, Tuple, Dict
+from models import Teacher, Classroom, Student, CourseType
 
 
-def generate_sample_data(num_students: int = 56) -> Tuple[List[Course], List[Teacher], List[Classroom], List[Student]]:
+def get_course_requirements() -> Dict[CourseType, int]:
+    """
+    Retourne les exigences de cours pour Secondaire 4 au Québec
+
+    Returns:
+        Dictionnaire {CourseType: nombre_de_cours}
+    """
+    return {
+        CourseType.SCIENCE: 4,
+        CourseType.STE: 2,
+        CourseType.ASC: 2,
+        CourseType.FRANCAIS: 6,
+        CourseType.MATH_SN: 6,
+        CourseType.ANGLAIS: 4,
+        CourseType.HISTOIRE: 4,
+        CourseType.CCQ: 2,
+        CourseType.ESPAGNOL: 2,
+        CourseType.EDUC: 2,
+        CourseType.OPTION: 2,
+    }
+
+
+def generate_sample_data(num_students: int = 56) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student]]:
     """
     Génère les données d'exemple selon les spécifications:
     - Nombre d'étudiants configurable (par défaut 56)
     - Tous en Secondaire 4
-    - Cours requis avec le bon nombre de classes
+    - Exigences de cours (chaque étudiant doit suivre tous les cours)
     - Enseignants capables d'enseigner les cours
     - Salles de classe
 
     Args:
         num_students: Nombre d'étudiants à générer (défaut: 56)
+
+    Returns:
+        (course_requirements, teachers, classrooms, students)
     """
 
     # Créer les étudiants (nombre configurable, tous en Secondaire 4)
@@ -27,32 +52,8 @@ def generate_sample_data(num_students: int = 56) -> Tuple[List[Course], List[Tea
             grade=4  # Tous en Secondaire 4
         ))
 
-    # Créer les cours selon les spécifications
-    courses = []
-    course_id = 1
-
-    course_specs = [
-        (CourseType.SCIENCE, 4),
-        (CourseType.STE, 2),
-        (CourseType.ASC, 2),
-        (CourseType.FRANCAIS, 6),
-        (CourseType.MATH_SN, 6),
-        (CourseType.ANGLAIS, 4),
-        (CourseType.HISTOIRE, 4),
-        (CourseType.CCQ, 2),
-        (CourseType.ESPAGNOL, 2),
-        (CourseType.EDUC, 2),
-        (CourseType.OPTION, 2),
-    ]
-
-    for course_type, count in course_specs:
-        for _ in range(count):
-            courses.append(Course(
-                id=course_id,
-                course_type=course_type,
-                max_students=28
-            ))
-            course_id += 1
+    # Obtenir les exigences de cours
+    course_requirements = get_course_requirements()
 
     # Créer les enseignants (minimiser le nombre)
     teachers = []
@@ -129,24 +130,20 @@ def generate_sample_data(num_students: int = 56) -> Tuple[List[Course], List[Tea
             capacity=28
         ))
 
-    return courses, teachers, classrooms, students
+    return course_requirements, teachers, classrooms, students
 
 
 if __name__ == "__main__":
     # Test de génération
-    courses, teachers, classrooms, students = generate_sample_data()
+    course_requirements, teachers, classrooms, students = generate_sample_data()
 
     print(f"Généré:")
-    print(f"  - {len(courses)} cours")
+    total_courses = sum(course_requirements.values())
+    print(f"  - {total_courses} cours requis par étudiant")
     print(f"  - {len(teachers)} enseignants")
     print(f"  - {len(classrooms)} salles")
     print(f"  - {len(students)} étudiants")
 
-    print("\nRépartition des cours:")
-    course_counts = {}
-    for course in courses:
-        course_type = course.course_type.value
-        course_counts[course_type] = course_counts.get(course_type, 0) + 1
-
-    for course_type, count in sorted(course_counts.items()):
-        print(f"  {course_type}: {count}")
+    print("\nExigences de cours (par étudiant):")
+    for course_type, count in sorted(course_requirements.items(), key=lambda x: x[0].value):
+        print(f"  {course_type.value}: {count} cours")
