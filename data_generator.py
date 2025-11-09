@@ -27,10 +27,12 @@ def get_course_requirements() -> Dict[CourseType, int]:
     }
 
 
-def generate_sample_data(num_students: int = 56) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student]]:
+def generate_sample_data(num_students: int = 56, num_teachers: int = 13, num_classrooms: int = 8) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student]]:
     """
     Génère les données d'exemple selon les spécifications:
     - Nombre d'étudiants configurable (par défaut 56)
+    - Nombre d'enseignants configurable (par défaut 13)
+    - Nombre de salles configurable (par défaut 8)
     - Tous en Secondaire 4
     - Exigences de cours (chaque étudiant doit suivre tous les cours)
     - Enseignants capables d'enseigner les cours
@@ -38,6 +40,8 @@ def generate_sample_data(num_students: int = 56) -> Tuple[Dict[CourseType, int],
 
     Args:
         num_students: Nombre d'étudiants à générer (défaut: 56)
+        num_teachers: Nombre d'enseignants à générer (défaut: 13)
+        num_classrooms: Nombre de salles à générer (défaut: 8)
 
     Returns:
         (course_requirements, teachers, classrooms, students)
@@ -55,75 +59,65 @@ def generate_sample_data(num_students: int = 56) -> Tuple[Dict[CourseType, int],
     # Obtenir les exigences de cours
     course_requirements = get_course_requirements()
 
-    # Créer les enseignants (minimiser le nombre)
+    # Créer les enseignants avec distribution intelligente
     teachers = []
     teacher_id = 1
 
-    # Enseignants de sciences (peuvent enseigner Science, STE, ASC)
-    for i in range(3):
+    # Définir les spécialités d'enseignants avec leur poids (basé sur le nombre de cours)
+    teacher_specialties = [
+        ("Sciences", [CourseType.SCIENCE, CourseType.STE, CourseType.ASC], 8),  # 4+2+2 = 8 cours
+        ("Français", [CourseType.FRANCAIS], 6),
+        ("Mathématiques", [CourseType.MATH_SN], 6),
+        ("Anglais", [CourseType.ANGLAIS], 4),
+        ("Histoire", [CourseType.HISTOIRE, CourseType.CCQ], 6),  # 4+2 = 6 cours
+        ("Espagnol", [CourseType.ESPAGNOL], 2),
+        ("Éducation physique", [CourseType.EDUC, CourseType.OPTION], 4),  # 2+2 = 4 cours
+    ]
+
+    # Calculer le poids total
+    total_weight = sum(weight for _, _, weight in teacher_specialties)
+
+    # Distribuer les enseignants selon le poids de chaque spécialité
+    teachers_assigned = 0
+    for specialty_name, can_teach, weight in teacher_specialties:
+        # Calculer combien d'enseignants pour cette spécialité (au minimum 1)
+        num_for_specialty = max(1, round((weight / total_weight) * num_teachers))
+
+        # S'assurer qu'on ne dépasse pas le nombre total
+        if teachers_assigned + num_for_specialty > num_teachers:
+            num_for_specialty = num_teachers - teachers_assigned
+
+        for i in range(num_for_specialty):
+            teachers.append(Teacher(
+                id=teacher_id,
+                name=f"Prof. {specialty_name} {i + 1}" if num_for_specialty > 1 else f"Prof. {specialty_name}",
+                can_teach=can_teach
+            ))
+            teacher_id += 1
+            teachers_assigned += 1
+
+            if teachers_assigned >= num_teachers:
+                break
+
+        if teachers_assigned >= num_teachers:
+            break
+
+    # S'il manque des enseignants, ajouter des généralistes (peuvent enseigner plusieurs matières)
+    while teachers_assigned < num_teachers:
+        # Créer un enseignant polyvalent avec plusieurs compétences
+        multi_subjects = [CourseType.SCIENCE, CourseType.STE, CourseType.ASC,
+                         CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.ANGLAIS]
         teachers.append(Teacher(
             id=teacher_id,
-            name=f"Prof. Sciences {i + 1}",
-            can_teach=[CourseType.SCIENCE, CourseType.STE, CourseType.ASC]
+            name=f"Prof. Polyvalent {teachers_assigned - len(teacher_specialties) + 1}",
+            can_teach=multi_subjects
         ))
         teacher_id += 1
+        teachers_assigned += 1
 
-    # Enseignants de français
-    for i in range(2):
-        teachers.append(Teacher(
-            id=teacher_id,
-            name=f"Prof. Français {i + 1}",
-            can_teach=[CourseType.FRANCAIS]
-        ))
-        teacher_id += 1
-
-    # Enseignants de mathématiques
-    for i in range(2):
-        teachers.append(Teacher(
-            id=teacher_id,
-            name=f"Prof. Mathématiques {i + 1}",
-            can_teach=[CourseType.MATH_SN]
-        ))
-        teacher_id += 1
-
-    # Enseignants d'anglais
-    for i in range(2):
-        teachers.append(Teacher(
-            id=teacher_id,
-            name=f"Prof. Anglais {i + 1}",
-            can_teach=[CourseType.ANGLAIS]
-        ))
-        teacher_id += 1
-
-    # Enseignants d'histoire et CCQ
-    for i in range(2):
-        teachers.append(Teacher(
-            id=teacher_id,
-            name=f"Prof. Histoire {i + 1}",
-            can_teach=[CourseType.HISTOIRE, CourseType.CCQ]
-        ))
-        teacher_id += 1
-
-    # Enseignant d'espagnol
-    teachers.append(Teacher(
-        id=teacher_id,
-        name="Prof. Espagnol",
-        can_teach=[CourseType.ESPAGNOL]
-    ))
-    teacher_id += 1
-
-    # Enseignant d'éducation physique et option
-    teachers.append(Teacher(
-        id=teacher_id,
-        name="Prof. Éducation physique",
-        can_teach=[CourseType.EDUC, CourseType.OPTION]
-    ))
-    teacher_id += 1
-
-    # Créer les salles de classe (minimiser le nombre)
+    # Créer les salles de classe
     classrooms = []
-    # On a besoin de max 4 salles utilisées simultanément (4 périodes par jour)
-    for i in range(8):
+    for i in range(num_classrooms):
         classrooms.append(Classroom(
             id=i + 1,
             name=f"Salle {i + 1}",
@@ -131,7 +125,7 @@ def generate_sample_data(num_students: int = 56) -> Tuple[Dict[CourseType, int],
         ))
 
     # Assigner une salle préférée à chaque enseignant
-    # Les enseignants partagent des salles si nécessaire (13 enseignants, 8 salles)
+    # Les enseignants partagent des salles si nécessaire (distribution cyclique)
     for i, teacher in enumerate(teachers):
         teacher.preferred_classroom = classrooms[i % len(classrooms)]
 

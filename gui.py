@@ -24,6 +24,8 @@ class SchedulerApp:
 
         # Variables de configuration
         self.num_students_var = IntVar(value=56)
+        self.num_teachers_var = IntVar(value=13)
+        self.num_classrooms_var = IntVar(value=8)
         self.status_var = StringVar(value="Prêt à générer l'horaire")
         self.selected_student_var = IntVar(value=0)
 
@@ -63,14 +65,37 @@ class SchedulerApp:
         main_container = ttk.Frame(self.root)
         main_container.pack(fill=BOTH, expand=YES, padx=20, pady=20)
 
-        # Panneau gauche - Configuration
+        # Panneau gauche - Configuration avec scrollbar
+        left_frame = ttk.Frame(main_container)
+        left_frame.pack(side=LEFT, fill=BOTH, expand=NO, padx=(0, 10))
+
+        # Canvas pour rendre scrollable
+        canvas = ttk.Canvas(left_frame, width=320)
+        scrollbar = ttk.Scrollbar(left_frame, orient="vertical", command=canvas.yview)
+
         left_panel = ttk.LabelFrame(
-            main_container,
+            canvas,
             text="⚙️ Configuration",
             bootstyle="info",
             padding=15
         )
-        left_panel.pack(side=LEFT, fill=BOTH, expand=NO, padx=(0, 10), ipadx=20)
+
+        left_panel.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=left_panel, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Support du scroll avec la molette de souris
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        canvas.pack(side=LEFT, fill=BOTH, expand=YES)
+        scrollbar.pack(side=RIGHT, fill=Y)
 
         self.create_config_panel(left_panel)
 
@@ -143,12 +168,68 @@ class SchedulerApp:
             bootstyle="secondary"
         ).pack(anchor=W, pady=(5, 0))
 
+        # Nombre d'enseignants
+        teachers_frame = ttk.Labelframe(parent, text="Nombre d'enseignants", bootstyle="primary", padding=10)
+        teachers_frame.pack(fill=X, pady=(0, 15))
+
+        ttk.Label(
+            teachers_frame,
+            text="Enseignants disponibles :",
+            font=("Segoe UI", 10)
+        ).pack(anchor=W, pady=(0, 5))
+
+        teachers_spinbox = ttk.Spinbox(
+            teachers_frame,
+            from_=5,
+            to=50,
+            textvariable=self.num_teachers_var,
+            bootstyle="info",
+            font=("Segoe UI", 12),
+            width=15
+        )
+        teachers_spinbox.pack(fill=X)
+
+        ttk.Label(
+            teachers_frame,
+            text="Enseignants avec compétences variées",
+            font=("Segoe UI", 9),
+            bootstyle="secondary"
+        ).pack(anchor=W, pady=(5, 0))
+
+        # Nombre de salles
+        classrooms_frame = ttk.Labelframe(parent, text="Nombre de salles", bootstyle="primary", padding=10)
+        classrooms_frame.pack(fill=X, pady=(0, 15))
+
+        ttk.Label(
+            classrooms_frame,
+            text="Salles de classe disponibles :",
+            font=("Segoe UI", 10)
+        ).pack(anchor=W, pady=(0, 5))
+
+        classrooms_spinbox = ttk.Spinbox(
+            classrooms_frame,
+            from_=4,
+            to=30,
+            textvariable=self.num_classrooms_var,
+            bootstyle="info",
+            font=("Segoe UI", 12),
+            width=15
+        )
+        classrooms_spinbox.pack(fill=X)
+
+        ttk.Label(
+            classrooms_frame,
+            text="Capacité: 28 étudiants par salle",
+            font=("Segoe UI", 9),
+            bootstyle="secondary"
+        ).pack(anchor=W, pady=(5, 0))
+
         # Info sur les cours
         courses_frame = ttk.Labelframe(parent, text="Cours requis (36 total)", bootstyle="success", padding=10)
-        courses_frame.pack(fill=BOTH, expand=YES, pady=(0, 15))
+        courses_frame.pack(fill=X, expand=NO, pady=(0, 15))
 
-        courses_text = ScrolledText(courses_frame, height=12, autohide=True)
-        courses_text.pack(fill=BOTH, expand=YES)
+        courses_text = ScrolledText(courses_frame, height=8, autohide=True)
+        courses_text.pack(fill=BOTH, expand=NO)
 
         course_info = """📐 Science: 4 classes
 🔬 STE: 2 classes
@@ -355,6 +436,8 @@ class SchedulerApp:
         """Lance l'optimisation"""
         try:
             num_students = self.num_students_var.get()
+            num_teachers = self.num_teachers_var.get()
+            num_classrooms = self.num_classrooms_var.get()
 
             if num_students < 1 or num_students > 200:
                 Messagebox.show_error(
@@ -363,14 +446,28 @@ class SchedulerApp:
                 )
                 return
 
-            self.status_var.set(f"Génération des données pour {num_students} étudiants...")
+            if num_teachers < 5 or num_teachers > 50:
+                Messagebox.show_error(
+                    "Le nombre d'enseignants doit être entre 5 et 50.",
+                    "Erreur de configuration"
+                )
+                return
+
+            if num_classrooms < 4 or num_classrooms > 30:
+                Messagebox.show_error(
+                    "Le nombre de salles doit être entre 4 et 30.",
+                    "Erreur de configuration"
+                )
+                return
+
+            self.status_var.set(f"Génération des données pour {num_students} étudiants, {num_teachers} enseignants, {num_classrooms} salles...")
             self.generate_btn.config(state="disabled")
             self.progress.start()
             self.root.update()
 
             # Générer les données
             self.course_requirements, self.teachers, self.classrooms, self.students = \
-                generate_sample_data(num_students)
+                generate_sample_data(num_students, num_teachers, num_classrooms)
 
             self.status_var.set("Optimisation en cours... (peut prendre jusqu'à 2 minutes)")
             self.root.update()
