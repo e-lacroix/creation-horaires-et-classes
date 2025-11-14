@@ -12,6 +12,9 @@ from models import (CourseSession, Teacher, Classroom, Student, CourseType,
                     TimeSlot, StudentScheduleEntry)
 from scheduler import ScheduleOptimizer
 from data_generator import generate_sample_data
+from data_manager import DataManager
+import subprocess
+import os
 
 
 class SchedulerApp:
@@ -125,6 +128,11 @@ class SchedulerApp:
         stats_frame = ttk.Frame(self.notebook)
         self.notebook.add(stats_frame, text="📊 Statistiques")
         self.create_stats_tab(stats_frame)
+
+        # Onglet Gestion des Données
+        data_frame = ttk.Frame(self.notebook)
+        self.notebook.add(data_frame, text="🗂️ Gestion des Données")
+        self.create_data_management_tab(data_frame)
 
         # Barre de statut
         status_frame = ttk.Frame(self.root, bootstyle="secondary")
@@ -869,6 +877,243 @@ class SchedulerApp:
                 f"Erreur lors de l'export:\n{str(e)}\n\n{traceback.format_exc()}",
                 "Erreur d'export"
             )
+
+    def create_data_management_tab(self, parent):
+        """Crée l'onglet de gestion des données"""
+        # Conteneur principal avec padding
+        main_frame = ttk.Frame(parent, padding=20)
+        main_frame.pack(fill=BOTH, expand=YES)
+
+        # En-tête
+        header_label = ttk.Label(
+            main_frame,
+            text="Gestion des Données",
+            font=("Segoe UI", 16, "bold"),
+            bootstyle="primary"
+        )
+        header_label.pack(anchor=W, pady=(0, 10))
+
+        info_label = ttk.Label(
+            main_frame,
+            text="Gérez les fichiers de données (élèves, enseignants, classes, programmes)",
+            font=("Segoe UI", 10),
+            bootstyle="secondary"
+        )
+        info_label.pack(anchor=W, pady=(0, 20))
+
+        # Frame pour les sections
+        content_frame = ttk.Frame(main_frame)
+        content_frame.pack(fill=BOTH, expand=YES)
+
+        # Section Élèves
+        eleves_frame = ttk.LabelFrame(content_frame, text="📚 Élèves", bootstyle="info", padding=15)
+        eleves_frame.pack(fill=X, pady=(0, 10))
+
+        ttk.Label(
+            eleves_frame,
+            text="Fichier: data/eleves/eleves.csv",
+            font=("Segoe UI", 9)
+        ).pack(anchor=W, pady=(0, 5))
+
+        eleves_btn_frame = ttk.Frame(eleves_frame)
+        eleves_btn_frame.pack(fill=X)
+
+        ttk.Button(
+            eleves_btn_frame,
+            text="Ouvrir le fichier CSV",
+            bootstyle="info-outline",
+            command=lambda: self.open_csv_file("data/eleves/eleves.csv")
+        ).pack(side=LEFT, padx=(0, 5))
+
+        ttk.Button(
+            eleves_btn_frame,
+            text="Ouvrir le dossier",
+            bootstyle="secondary-outline",
+            command=lambda: self.open_folder("data/eleves")
+        ).pack(side=LEFT)
+
+        # Section Enseignants
+        enseignants_frame = ttk.LabelFrame(content_frame, text="👨‍🏫 Enseignants", bootstyle="info", padding=15)
+        enseignants_frame.pack(fill=X, pady=(0, 10))
+
+        ttk.Label(
+            enseignants_frame,
+            text="Fichier: data/enseignants/enseignants.csv",
+            font=("Segoe UI", 9)
+        ).pack(anchor=W, pady=(0, 5))
+
+        enseignants_btn_frame = ttk.Frame(enseignants_frame)
+        enseignants_btn_frame.pack(fill=X)
+
+        ttk.Button(
+            enseignants_btn_frame,
+            text="Ouvrir le fichier CSV",
+            bootstyle="info-outline",
+            command=lambda: self.open_csv_file("data/enseignants/enseignants.csv")
+        ).pack(side=LEFT, padx=(0, 5))
+
+        ttk.Button(
+            enseignants_btn_frame,
+            text="Ouvrir le dossier",
+            bootstyle="secondary-outline",
+            command=lambda: self.open_folder("data/enseignants")
+        ).pack(side=LEFT)
+
+        # Section Classes
+        classes_frame = ttk.LabelFrame(content_frame, text="🏫 Classes (Salles)", bootstyle="info", padding=15)
+        classes_frame.pack(fill=X, pady=(0, 10))
+
+        ttk.Label(
+            classes_frame,
+            text="Fichier: data/classes/classes.csv",
+            font=("Segoe UI", 9)
+        ).pack(anchor=W, pady=(0, 5))
+
+        classes_btn_frame = ttk.Frame(classes_frame)
+        classes_btn_frame.pack(fill=X)
+
+        ttk.Button(
+            classes_btn_frame,
+            text="Ouvrir le fichier CSV",
+            bootstyle="info-outline",
+            command=lambda: self.open_csv_file("data/classes/classes.csv")
+        ).pack(side=LEFT, padx=(0, 5))
+
+        ttk.Button(
+            classes_btn_frame,
+            text="Ouvrir le dossier",
+            bootstyle="secondary-outline",
+            command=lambda: self.open_folder("data/classes")
+        ).pack(side=LEFT)
+
+        # Section Programmes
+        programmes_frame = ttk.LabelFrame(content_frame, text="📋 Programmes", bootstyle="success", padding=15)
+        programmes_frame.pack(fill=X, pady=(0, 10))
+
+        ttk.Label(
+            programmes_frame,
+            text="Dossier: data/programmes/",
+            font=("Segoe UI", 9)
+        ).pack(anchor=W, pady=(0, 5))
+
+        # Lister les programmes disponibles
+        data_manager = DataManager()
+        programmes = data_manager.lister_programmes()
+
+        if programmes:
+            prog_text = "Programmes disponibles: " + ", ".join(programmes)
+        else:
+            prog_text = "Aucun programme trouvé"
+
+        ttk.Label(
+            programmes_frame,
+            text=prog_text,
+            font=("Segoe UI", 9),
+            bootstyle="secondary"
+        ).pack(anchor=W, pady=(0, 10))
+
+        ttk.Button(
+            programmes_frame,
+            text="Ouvrir le dossier des programmes",
+            bootstyle="success-outline",
+            command=lambda: self.open_folder("data/programmes")
+        ).pack(anchor=W)
+
+        # Section Actions
+        actions_frame = ttk.LabelFrame(content_frame, text="⚙️ Actions", bootstyle="warning", padding=15)
+        actions_frame.pack(fill=X, pady=(10, 0))
+
+        ttk.Label(
+            actions_frame,
+            text="Recréer les données d'exemple (écrase les fichiers existants)",
+            font=("Segoe UI", 9),
+            bootstyle="secondary"
+        ).pack(anchor=W, pady=(0, 10))
+
+        ttk.Button(
+            actions_frame,
+            text="Regénérer les données d'exemple",
+            bootstyle="warning",
+            command=self.regenerate_sample_data
+        ).pack(anchor=W)
+
+        # Note d'information
+        note_frame = ttk.Frame(content_frame)
+        note_frame.pack(fill=X, pady=(20, 0))
+
+        ttk.Label(
+            note_frame,
+            text="ℹ️ Note: Après modification des fichiers CSV, relancez la génération d'horaire pour appliquer les changements.",
+            font=("Segoe UI", 9),
+            bootstyle="info",
+            wraplength=700
+        ).pack(anchor=W)
+
+    def open_csv_file(self, filepath):
+        """Ouvre un fichier CSV avec l'application par défaut"""
+        try:
+            abs_path = os.path.abspath(filepath)
+            if os.path.exists(abs_path):
+                if os.name == 'nt':  # Windows
+                    os.startfile(abs_path)
+                elif os.name == 'posix':  # macOS, Linux
+                    subprocess.call(['open' if 'darwin' in os.sys.platform else 'xdg-open', abs_path])
+                self.status_var.set(f"Fichier ouvert: {filepath}")
+            else:
+                Messagebox.show_warning(
+                    f"Le fichier n'existe pas:\n{abs_path}\n\nExécutez 'python creer_donnees_exemple.py' pour créer les fichiers.",
+                    "Fichier introuvable"
+                )
+        except Exception as e:
+            Messagebox.show_error(f"Erreur lors de l'ouverture du fichier:\n{str(e)}", "Erreur")
+
+    def open_folder(self, folder_path):
+        """Ouvre un dossier dans l'explorateur de fichiers"""
+        try:
+            abs_path = os.path.abspath(folder_path)
+            if os.path.exists(abs_path):
+                if os.name == 'nt':  # Windows
+                    os.startfile(abs_path)
+                elif os.name == 'posix':  # macOS, Linux
+                    subprocess.call(['open' if 'darwin' in os.sys.platform else 'xdg-open', abs_path])
+                self.status_var.set(f"Dossier ouvert: {folder_path}")
+            else:
+                Messagebox.show_warning(
+                    f"Le dossier n'existe pas:\n{abs_path}\n\nExécutez 'python creer_donnees_exemple.py' pour créer les dossiers.",
+                    "Dossier introuvable"
+                )
+        except Exception as e:
+            Messagebox.show_error(f"Erreur lors de l'ouverture du dossier:\n{str(e)}", "Erreur")
+
+    def regenerate_sample_data(self):
+        """Régénère les données d'exemple"""
+        result = Messagebox.show_question(
+            "Êtes-vous sûr de vouloir régénérer les données d'exemple?\n\n"
+            "Cela écrasera tous les fichiers CSV existants dans:\n"
+            "- data/eleves/eleves.csv\n"
+            "- data/enseignants/enseignants.csv\n"
+            "- data/classes/classes.csv\n"
+            "- data/programmes/*.json",
+            "Confirmer la régénération"
+        )
+
+        if result == "Yes":
+            try:
+                # Exécuter le script de création de données
+                import creer_donnees_exemple
+                creer_donnees_exemple.creer_donnees_exemple()
+
+                Messagebox.show_info(
+                    "Les données d'exemple ont été régénérées avec succès!\n\n"
+                    "56 élèves, 13 enseignants, 8 classes et 2 programmes ont été créés.",
+                    "Régénération réussie"
+                )
+                self.status_var.set("Données d'exemple régénérées avec succès")
+            except Exception as e:
+                Messagebox.show_error(
+                    f"Erreur lors de la régénération des données:\n{str(e)}",
+                    "Erreur"
+                )
 
 
 def main():

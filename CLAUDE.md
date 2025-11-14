@@ -49,18 +49,35 @@ python data_generator.py
    - Returns: (success, sessions, student_schedules)
 
 3. **data_generator.py** - Generates sample data:
+   - Loads data from CSV files if available (via data_manager.py)
+   - Falls back to generating default data in memory
    - Configurable number of students (default 56), all in Grade 4 (Secondaire 4)
-   - Course requirements dictionary (36 courses total) with Quebec-specific distribution
-   - Minimal teacher set (13 teachers with overlapping competencies)
-   - 8 classrooms
-   - Function signature: `generate_sample_data(num_students: int = 56) -> (course_requirements, teachers, classrooms, students)`
+   - Course requirements loaded from program JSON files
+   - Function signature: `generate_sample_data(num_students: int = 56, use_csv_data: bool = True) -> (course_requirements, teachers, classrooms, students)`
 
-4. **gui.py** - Material Design desktop interface with ttkbootstrap:
+4. **data_manager.py** - CSV and JSON data management system:
+   - `Programme`: Data model for academic programs with course requirements
+   - `EleveData`: Student data (name, ID, program, restrictions, talents)
+   - `EnseignantData`: Teacher data (name, ID, subjects, restrictions, preferred classroom)
+   - `ClasseData`: Classroom data (ID, name, capacity, allowed subjects)
+   - `DataManager`: Load/save operations for all data types
+   - Data stored in `data/` directory with subdirectories for each type
+   - See `GUIDE_GESTION_DONNEES.md` for detailed usage
+
+5. **creer_donnees_exemple.py** - Sample data generator script:
+   - Creates CSV files with 56 students, 13 teachers, 8 classrooms
+   - Creates 2 default programs (Secondaire 4 Régulier, Secondaire 4 Sciences)
+   - Generates realistic random data (talents, restrictions, specializations)
+   - Can be run standalone: `python creer_donnees_exemple.py`
+
+6. **gui.py** - Material Design desktop interface with ttkbootstrap:
    - Configuration panel with student count spinbox (1-200 students)
    - Course requirements info with emojis
    - **Sessions tab**: Displays all course sessions with teacher, room, and student count
    - **Individual Schedules tab**: View personalized schedule for each student with dropdown selector
-   - Statistics tab with detailed session analysis, teacher load, room usage, and optimization efficiency
+   - **Teacher Schedules tab**: View personalized schedule for each teacher
+   - **Statistics tab**: Detailed session analysis, teacher load, room usage, and optimization efficiency
+   - **Data Management tab**: Manage CSV/JSON files, open files/folders, regenerate sample data
    - Excel export with 3 sheets: Sessions, Individual Schedules, and Teacher Assignments
    - Modern UI with primary/success/info color schemes
    - Status bar with real-time feedback
@@ -102,6 +119,43 @@ The system generates schedules for these course types (with class counts):
 - **Teacher Specialization**: Teachers can teach multiple related subjects (e.g., Science teachers can teach Science, STE, ASC)
 - **Mandatory Course Participation**: All students must attend all 36 courses (each student gets exactly one timeslot per course type)
 - **Daily Subject Limit**: Students can only have one course per subject type per day to reduce cognitive load
+
+## Data Management System
+
+### Overview
+The system now uses CSV and JSON files to manage all data, allowing customization without code changes:
+
+- **data/eleves/eleves.csv**: Student data (name, ID, program, restrictions, talents per subject)
+- **data/enseignants/enseignants.csv**: Teacher data (name, ID, subjects, restrictions, preferred classroom)
+- **data/classes/classes.csv**: Classroom data (ID, name, capacity, allowed subjects)
+- **data/programmes/*.json**: Program definitions with course requirements
+
+### Creating/Modifying Data
+
+**Using the GUI** (recommended):
+1. Open the application (`python main.py`)
+2. Navigate to the "🗂️ Gestion des Données" tab
+3. Click "Ouvrir le fichier CSV" to edit files with Excel/LibreOffice
+4. Or use "Regénérer les données d'exemple" to reset to defaults
+
+**Manual editing**:
+- Edit CSV files directly in `data/` subdirectories
+- Use UTF-8 encoding
+- Follow the format specified in `data/README.md` and `GUIDE_GESTION_DONNEES.md`
+
+### Available Programs
+Programs define course requirements for different student tracks. Each program is a JSON file in `data/programmes/` with:
+- Program name
+- Course requirements (CourseType → count)
+- Description
+
+Students reference programs by name in their CSV entry. The system loads course requirements from the program file.
+
+### Data Loading Flow
+1. `generate_sample_data()` in data_generator.py attempts to load from CSV
+2. If CSV files exist, `load_data_from_csv()` converts them to internal models
+3. Program requirements are loaded from JSON based on student programs
+4. If CSV loading fails, falls back to `generate_default_data()` (in-memory generation)
 
 ## Development Notes
 
