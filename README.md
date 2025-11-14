@@ -30,9 +30,17 @@ pip install -r requirements.txt
 
 ### Lancer l'application
 
+**Sur Windows (recommandé):**
+```bash
+run_app.bat
+```
+
+**Sur macOS/Linux ou avec Python directement:**
 ```bash
 python main.py
 ```
+
+> **Note:** Sur Windows, l'application inclut un support complet UTF-8 pour les caractères accentués. Voir [ENCODAGE_UTF8.md](ENCODAGE_UTF8.md) pour plus de détails.
 
 ### Configuration
 

@@ -2,6 +2,9 @@
 Génère des données d'exemple pour le système d'horaires
 Charge les données depuis les fichiers CSV et JSON ou génère des données par défaut
 """
+# Configurer l'encodage UTF-8 en premier
+import setup_encoding
+
 from typing import List, Tuple, Dict
 from models import Teacher, Classroom, Student, CourseType
 from data_manager import DataManager

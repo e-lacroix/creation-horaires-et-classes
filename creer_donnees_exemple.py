@@ -1,6 +1,9 @@
 """
 Script pour créer des données d'exemple pour les élèves, enseignants et classes.
 """
+# Configurer l'encodage UTF-8 en premier
+import setup_encoding
+
 from data_manager import (
     DataManager, Programme, EleveData, EnseignantData, ClasseData,
     creer_programmes_par_defaut
