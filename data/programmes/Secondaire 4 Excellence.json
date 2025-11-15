@@ -1,12 +1,12 @@
 {
   "nom": "Secondaire 4 Sciences",
   "cours": {
-    "Science": 4,
-    "STE": 2,
+    "Science": 2,
+    "STE": 4,
     "ASC": 2,
     "Français": 6,
     "Math SN": 6,
-    "Anglais": 4,
+    "Anglais avancé": 4,
     "Histoire": 4,
     "CCQ": 2,
     "Éducation physique": 2,

@@ -179,39 +179,39 @@ def creer_donnees_exemple():
     classes = []
 
     # Définition des types de salles avec matières autorisées
-    # Avec 176 élèves et des sessions de 20-28 élèves, on a besoin de plusieurs salles de chaque type
+    # Avec 176 élèves et des sessions de 20-32 élèves, on a besoin de plusieurs salles de chaque type
     types_salles = [
         # 3 Laboratoires pour les sciences
-        ("Laboratoire 1", 28, ["Science", "STE", "ASC"]),
-        ("Laboratoire 2", 28, ["Science", "STE", "ASC"]),
-        ("Laboratoire 3", 28, ["Science", "STE", "ASC"]),
+        ("Laboratoire 1", 32, ["Science", "STE", "ASC"]),
+        ("Laboratoire 2", 32, ["Science", "STE", "ASC"]),
+        ("Laboratoire 3", 32, ["Science", "STE", "ASC"]),
 
         # 10 Salles régulières pour Français, Math SN, Math CST, Anglais, Espagnol
-        ("Salle régulière 1", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 2", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 3", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 4", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 5", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 6", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 7", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 8", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 9", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 10", 28, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 1", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 2", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 3", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 4", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 5", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 6", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 7", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 8", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 9", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        ("Salle régulière 10", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
 
         # 2 Salles multimédia pour Histoire et CCQ
-        ("Salle multimédia 1", 28, ["Histoire", "CCQ"]),
-        ("Salle multimédia 2", 28, ["Histoire", "CCQ"]),
+        ("Salle multimédia 1", 32, ["Histoire", "CCQ"]),
+        ("Salle multimédia 2", 32, ["Histoire", "CCQ"]),
 
         # 3 Gymnases pour Éducation physique
-        ("Gymnase 1", 28, ["Éducation physique"]),
-        ("Gymnase 2", 28, ["Éducation physique"]),
-        ("Gymnase 3", 28, ["Éducation physique"]),
+        ("Gymnase 1", 32, ["Éducation physique"]),
+        ("Gymnase 2", 32, ["Éducation physique"]),
+        ("Gymnase 3", 32, ["Éducation physique"]),
 
         # 4 Salles d'arts pour Option
-        ("Salle d'arts 1", 28, ["Option"]),
-        ("Salle d'arts 2", 28, ["Option"]),
-        ("Salle d'arts 3", 28, ["Option"]),
-        ("Salle d'arts 4", 28, ["Option"])
+        ("Salle d'arts 1", 32, ["Option"]),
+        ("Salle d'arts 2", 32, ["Option"]),
+        ("Salle d'arts 3", 32, ["Option"]),
+        ("Salle d'arts 4", 32, ["Option"])
     ]
 
     for i, (nom, capacite, matieres) in enumerate(types_salles):

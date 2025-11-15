@@ -320,7 +320,7 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
             classrooms.append(Classroom(
                 id=classroom_id,
                 name=room_name,
-                capacity=28,
+                capacity=32,
                 allowed_subjects=allowed_subjects.copy()
             ))
             classroom_id += 1
@@ -333,8 +333,8 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
         classrooms.append(Classroom(
             id=classroom_id,
             name=f"Salle régulière {classroom_id}",
-            capacity=28,
-            allowed_subjects=[CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.ANGLAIS]
+            capacity=32,
+            allowed_subjects=[CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.MATH_CST, CourseType.ANGLAIS]
         ))
         classroom_id += 1
 

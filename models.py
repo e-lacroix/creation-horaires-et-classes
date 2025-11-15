@@ -50,7 +50,7 @@ class Classroom:
     """Représente une salle de classe"""
     id: int
     name: str
-    capacity: int = 28
+    capacity: int = 32
     allowed_subjects: Optional[List[CourseType]] = None  # Matières autorisées dans cette salle (None = toutes)
 
     def __post_init__(self):
@@ -67,7 +67,7 @@ class Course:
     """Représente un cours spécifique"""
     id: int
     course_type: CourseType
-    max_students: int = 28
+    max_students: int = 32
     assigned_teacher: Optional[Teacher] = None
     assigned_room: Optional[Classroom] = None
     assigned_students: List[Student] = None

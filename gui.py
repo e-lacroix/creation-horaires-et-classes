@@ -622,7 +622,7 @@ class SchedulerApp:
         stats += "─" * 60 + "\n"
         stats += "   ✓ Chaque étudiant a un horaire personnalisé\n"
         stats += "   ✓ Tous les cours requis sont assignés\n"
-        stats += "   ✓ Maximum 28 étudiants par session respecté\n"
+        stats += "   ✓ Maximum 32 étudiants par session respecté\n"
         stats += "   ✓ Pas de conflit d'enseignants\n"
         stats += "   ✓ Pas de conflit de salles\n"
         stats += "   ✓ Pas plus d'1 cours par matière par jour\n"

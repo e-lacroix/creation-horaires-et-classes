@@ -186,7 +186,7 @@ class ScheduleOptimizer:
                             # Forcer cette variable à 0 (cette salle ne peut pas accueillir ce cours)
                             self.model.Add(self.session_room[course_type][timeslot][room.id] == 0)
 
-        # Contrainte 9: Maximum 28 étudiants par session
+        # Contrainte 9: Maximum 32 étudiants par session
         for course_type in self.course_requirements.keys():
             for timeslot in self.timeslots:
                 students_in_session = []
@@ -197,7 +197,7 @@ class ScheduleOptimizer:
                             self.student_course_timeslot[student.id][course_type][course_num][timeslot]
                         )
                 if students_in_session:
-                    self.model.Add(sum(students_in_session) <= 28)
+                    self.model.Add(sum(students_in_session) <= 32)
 
         # Contrainte 10: Un étudiant ne peut avoir qu'un cours de la même matière par jour
         for student in self.students:

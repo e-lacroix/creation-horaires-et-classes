@@ -1,23 +1,23 @@
 Identifiant,Nom,Capacité,Matières Autorisées
-C001,Laboratoire 1,28,Science|STE|ASC
-C002,Laboratoire 2,28,Science|STE|ASC
-C003,Laboratoire 3,28,Science|STE|ASC
-C004,Salle régulière 1,28,Espagnol|Français|Math SN|Math CST|Anglais
-C005,Salle régulière 2,28,Espagnol|Français|Math SN|Math CST|Anglais
-C006,Salle régulière 3,28,Espagnol|Français|Math SN|Math CST|Anglais
-C007,Salle régulière 4,28,Espagnol|Français|Math SN|Math CST|Anglais
-C008,Salle régulière 5,28,Espagnol|Français|Math SN|Math CST|Anglais
-C009,Salle régulière 6,28,Espagnol|Français|Math SN|Math CST|Anglais
-C010,Salle régulière 7,28,Espagnol|Français|Math SN|Math CST|Anglais
-C011,Salle régulière 8,28,Espagnol|Français|Math SN|Math CST|Anglais
-C012,Salle régulière 9,28,Espagnol|Français|Math SN|Math CST|Anglais
-C013,Salle régulière 10,28,Espagnol|Français|Math SN|Math CST|Anglais
-C014,Salle multimédia 1,28,Histoire|CCQ
-C015,Salle multimédia 2,28,Histoire|CCQ
-C016,Gymnase 1,28,Éducation physique
-C017,Gymnase 2,28,Éducation physique
-C018,Gymnase 3,28,Éducation physique
-C019,Salle d'arts 1,28,Option
-C020,Salle d'arts 2,28,Option
-C021,Salle d'arts 3,28,Option
-C022,Salle d'arts 4,28,Option
+C001,Laboratoire 1,32,Science|STE|ASC
+C002,Laboratoire 2,32,Science|STE|ASC
+C003,Laboratoire 3,32,Science|STE|ASC
+C004,Salle régulière 1,32,Espagnol|Français|Math SN|Math CST|Anglais
+C005,Salle régulière 2,32,Espagnol|Français|Math SN|Math CST|Anglais
+C006,Salle régulière 3,32,Espagnol|Français|Math SN|Math CST|Anglais
+C007,Salle régulière 4,32,Espagnol|Français|Math SN|Math CST|Anglais
+C008,Salle régulière 5,32,Espagnol|Français|Math SN|Math CST|Anglais
+C009,Salle régulière 6,32,Espagnol|Français|Math SN|Math CST|Anglais
+C010,Salle régulière 7,32,Espagnol|Français|Math SN|Math CST|Anglais
+C011,Salle régulière 8,32,Espagnol|Français|Math SN|Math CST|Anglais
+C012,Salle régulière 9,32,Espagnol|Français|Math SN|Math CST|Anglais
+C013,Salle régulière 10,32,Espagnol|Français|Math SN|Math CST|Anglais
+C014,Salle multimédia 1,32,Histoire|CCQ
+C015,Salle multimédia 2,32,Histoire|CCQ
+C016,Gymnase 1,32,Éducation physique
+C017,Gymnase 2,32,Éducation physique
+C018,Gymnase 3,32,Éducation physique
+C019,Salle d'arts 1,32,Option
+C020,Salle d'arts 2,32,Option
+C021,Salle d'arts 3,32,Option
+C022,Salle d'arts 4,32,Option
