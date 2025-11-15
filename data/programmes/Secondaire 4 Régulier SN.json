@@ -1,15 +1,16 @@
 {
   "nom": "Secondaire 4 Sciences",
   "cours": {
-    "Science": 6,
+    "Science": 4,
     "STE": 4,
-    "ASC": 4,
-    "Français": 4,
+    "ASC": 0,
+    "Français": 6,
     "Math SN": 6,
     "Anglais": 4,
     "Histoire": 4,
-    "CCQ": 2,
-    "Éducation physique": 2
+    "CCQ": 4,
+    "Éducation physique": 2,
+    "Option": 2
   },
   "description": "Programme enrichi en sciences pour les élèves de Secondaire 4",
   "min_etudiants_par_session": 20

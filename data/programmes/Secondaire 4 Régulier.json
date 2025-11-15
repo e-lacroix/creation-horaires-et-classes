@@ -1,17 +1,17 @@
 {
   "nom": "Secondaire 4 Régulier",
   "cours": {
-    "Science": 4,
-    "STE": 2,
-    "ASC": 2,
+    "Science": 6,
+    "STE": 0,
+    "ASC": 0,
     "Français": 6,
-    "Math SN": 6,
+    "Math CST": 6,
     "Anglais": 4,
     "Histoire": 4,
     "CCQ": 2,
-    "Espagnol": 2,
+    "Espagnol": 0,
     "Éducation physique": 2,
-    "Option": 2
+    "Option": 6
   },
   "description": "Programme régulier pour les élèves de Secondaire 4 au Québec",
   "min_etudiants_par_session": 20
