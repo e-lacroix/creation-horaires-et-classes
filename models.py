@@ -15,6 +15,7 @@ class CourseType(Enum):
     MATH_SN = "Math SN"  # Séquence Sciences Naturelles
     MATH_CST = "Math CST"  # Séquence Culture, Société et Technique
     ANGLAIS = "Anglais"
+    ANGLAIS_AVANCE = "Anglais avancé"
     HISTOIRE = "Histoire"
     CCQ = "CCQ"  # Culture et citoyenneté québécoise
     ESPAGNOL = "Espagnol"

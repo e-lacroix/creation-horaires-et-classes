@@ -126,6 +126,7 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
         "Math SN": CourseType.MATH_SN,
         "Math CST": CourseType.MATH_CST,
         "Anglais": CourseType.ANGLAIS,
+        "Anglais avancé": CourseType.ANGLAIS_AVANCE,
         "Histoire": CourseType.HISTOIRE,
         "CCQ": CourseType.CCQ,
         "Espagnol": CourseType.ESPAGNOL,
@@ -170,7 +171,7 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
                 allowed_subjects = [CourseType.HISTOIRE, CourseType.CCQ]
             else:
                 # Salle régulière par défaut
-                allowed_subjects = [CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.MATH_CST, CourseType.ANGLAIS]
+                allowed_subjects = [CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.MATH_CST, CourseType.ANGLAIS, CourseType.ANGLAIS_AVANCE]
 
         classrooms.append(Classroom(
             id=i + 1,
@@ -242,6 +243,7 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
         ("Mathématiques SN", [CourseType.MATH_SN], 6),
         ("Mathématiques CST", [CourseType.MATH_CST], 6),
         ("Anglais", [CourseType.ANGLAIS], 4),
+        ("Anglais avancé", [CourseType.ANGLAIS_AVANCE], 4),
         ("Histoire", [CourseType.HISTOIRE, CourseType.CCQ], 6),  # 4+2 = 6 cours
         ("Espagnol", [CourseType.ESPAGNOL], 2),
         ("Éducation physique", [CourseType.EDUC], 2),  # 2 cours
@@ -300,7 +302,7 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
         ("Gymnase", [CourseType.EDUC], 1, False),  # Gymnase ne peut pas être une salle préférée
         ("Salle d'arts", [CourseType.OPTION], 1, True),
         ("Salle multimédia", [CourseType.HISTOIRE, CourseType.CCQ], 1, True),
-        ("Salle régulière", [CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.MATH_CST, CourseType.ANGLAIS], 3, True),
+        ("Salle régulière", [CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.MATH_CST, CourseType.ANGLAIS, CourseType.ANGLAIS_AVANCE], 3, True),
     ]
 
     # Créer les salles selon les types
@@ -334,7 +336,7 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
             id=classroom_id,
             name=f"Salle régulière {classroom_id}",
             capacity=32,
-            allowed_subjects=[CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.MATH_CST, CourseType.ANGLAIS]
+            allowed_subjects=[CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.MATH_CST, CourseType.ANGLAIS, CourseType.ANGLAIS_AVANCE]
         ))
         classroom_id += 1
 

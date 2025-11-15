@@ -1,37 +1,39 @@
 Nom,Identifiant,Matières,Restrictions,Classe Préférée
-Marie Dubois,T001,Science|STE|ASC,,C008
-Jean Martin,T002,Science|STE,,C009
-Claude Fortin,T003,Science|ASC,,C013
-Diane Gagnon,T004,Science|STE|ASC,mercredi_matin,C009
-Luc Bergeron,T005,STE|ASC,mercredi_matin,C015
-Élise Morin,T006,Science,,C005
-Sophie Bernard,T007,Français,,C001
-Pierre Lefevre,T008,Français,,C004
-Hélène Tremblay,T009,Français,,C004
-Marc Bouchard,T010,Français,,C017
-Nathalie Roy,T011,Français,mercredi_matin,C012
-Pascal Leblanc,T012,Français,,C018
-Isabelle Morin,T013,Math SN,,C018
-François Girard,T014,Math SN,,C011
-Stéphane Côté,T015,Math SN,,C022
-Valérie Gauthier,T016,Math SN,,C011
-André Lavoie,T017,Math CST,,C014
-Julie Pelletier,T018,Math CST,,C009
-Simon Ouellet,T019,Math CST,,C003
+Marie Dubois,T001,Science|STE|ASC,,C012
+Jean Martin,T002,Science|STE,,C003
+Claude Fortin,T003,Science|ASC,,C006
+Diane Gagnon,T004,Science|STE|ASC,,C007
+Luc Bergeron,T005,STE|ASC,,C016
+Élise Morin,T006,Science,,C003
+Sophie Bernard,T007,Français,,C006
+Pierre Lefevre,T008,Français,mercredi_matin,C002
+Hélène Tremblay,T009,Français,,C002
+Marc Bouchard,T010,Français,,C018
+Nathalie Roy,T011,Français,,C022
+Pascal Leblanc,T012,Français,,C022
+Isabelle Morin,T013,Math SN,,C017
+François Girard,T014,Math SN,,C006
+Stéphane Côté,T015,Math SN,,C009
+Valérie Gauthier,T016,Math SN,,C017
+André Lavoie,T017,Math CST,,C012
+Julie Pelletier,T018,Math CST,,C022
+Simon Ouellet,T019,Math CST,,C015
 Caroline Gagné,T020,Math CST,,C018
-Catherine Leblanc,T021,Anglais,,C017
-Michel Roy,T022,Anglais,,C014
-Thomas Bélanger,T023,Anglais,,C014
-Sarah Martin,T024,Anglais,,C002
-Julie Gagnon,T025,Histoire|CCQ,,C009
-Robert Tremblay,T026,Histoire,,C001
-Philippe Dubois,T027,Histoire|CCQ,mercredi_matin,C010
-Amélie Fortin,T028,CCQ|Histoire,,C008
-Nathalie Bouchard,T029,Espagnol,,C008
-Carlos Rodriguez,T030,Espagnol,,C016
-Daniel Fortin,T031,Éducation physique,,
-Maxime Gauthier,T032,Éducation physique,,
-Jessica Lavoie,T033,Éducation physique,,
-Sylvie Pelletier,T034,Option,,C006
-Martin Côté,T035,Option,,C005
-Isabelle Gagné,T036,Option,,C022
+Catherine Leblanc,T021,Anglais,,C006
+Michel Roy,T022,Anglais,,C007
+Thomas Bélanger,T023,Anglais,,C018
+Sarah Martin,T024,Anglais,,C004
+Elizabeth Johnson,T025,Anglais avancé,mercredi_matin,C016
+David Thompson,T026,Anglais avancé,,C003
+Julie Gagnon,T027,Histoire|CCQ,,C015
+Robert Tremblay,T028,Histoire,,C018
+Philippe Dubois,T029,Histoire|CCQ,,C015
+Amélie Fortin,T030,CCQ|Histoire,,C014
+Nathalie Bouchard,T031,Espagnol,,C001
+Carlos Rodriguez,T032,Espagnol,,C001
+Daniel Fortin,T033,Éducation physique,,
+Maxime Gauthier,T034,Éducation physique,,
+Jessica Lavoie,T035,Éducation physique,,
+Sylvie Pelletier,T036,Option,mercredi_matin,C022
+Martin Côté,T037,Option,,C001
+Isabelle Gagné,T038,Option,,C005

@@ -31,7 +31,7 @@ def creer_donnees_exemple():
     noms = ["Tremblay", "Gagnon", "Roy", "Côté", "Bouchard", "Gauthier", "Morin", "Lavoie",
             "Fortin", "Gagné", "Ouellet", "Pelletier", "Bélanger", "Leblanc", "Bergeron"]
 
-    matieres_talents = ["Science", "STE", "ASC", "Français", "Math SN", "Math CST", "Anglais", "Histoire",
+    matieres_talents = ["Science", "STE", "ASC", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé", "Histoire",
                        "CCQ", "Espagnol", "Éducation physique", "Option"]
 
     # Répartition des élèves :
@@ -124,6 +124,10 @@ def creer_donnees_exemple():
         ("Thomas Bélanger", ["Anglais"], False),
         ("Sarah Martin", ["Anglais"], False),
 
+        # Anglais avancé (environ 2 enseignants)
+        ("Elizabeth Johnson", ["Anglais avancé"], False),
+        ("David Thompson", ["Anglais avancé"], False),
+
         # Histoire/CCQ (environ 4 enseignants)
         ("Julie Gagnon", ["Histoire", "CCQ"], False),
         ("Robert Tremblay", ["Histoire"], False),
@@ -186,17 +190,17 @@ def creer_donnees_exemple():
         ("Laboratoire 2", 32, ["Science", "STE", "ASC"]),
         ("Laboratoire 3", 32, ["Science", "STE", "ASC"]),
 
-        # 10 Salles régulières pour Français, Math SN, Math CST, Anglais, Espagnol
-        ("Salle régulière 1", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 2", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 3", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 4", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 5", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 6", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 7", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 8", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 9", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
-        ("Salle régulière 10", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais"]),
+        # 10 Salles régulières pour Français, Math SN, Math CST, Anglais, Anglais avancé, Espagnol
+        ("Salle régulière 1", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 2", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 3", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 4", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 5", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 6", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 7", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 8", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 9", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 10", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
 
         # 2 Salles multimédia pour Histoire et CCQ
         ("Salle multimédia 1", 32, ["Histoire", "CCQ"]),

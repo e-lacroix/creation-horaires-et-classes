@@ -2,16 +2,16 @@ Identifiant,Nom,Capacité,Matières Autorisées
 C001,Laboratoire 1,32,Science|STE|ASC
 C002,Laboratoire 2,32,Science|STE|ASC
 C003,Laboratoire 3,32,Science|STE|ASC
-C004,Salle régulière 1,32,Espagnol|Français|Math SN|Math CST|Anglais
-C005,Salle régulière 2,32,Espagnol|Français|Math SN|Math CST|Anglais
-C006,Salle régulière 3,32,Espagnol|Français|Math SN|Math CST|Anglais
-C007,Salle régulière 4,32,Espagnol|Français|Math SN|Math CST|Anglais
-C008,Salle régulière 5,32,Espagnol|Français|Math SN|Math CST|Anglais
-C009,Salle régulière 6,32,Espagnol|Français|Math SN|Math CST|Anglais
-C010,Salle régulière 7,32,Espagnol|Français|Math SN|Math CST|Anglais
-C011,Salle régulière 8,32,Espagnol|Français|Math SN|Math CST|Anglais
-C012,Salle régulière 9,32,Espagnol|Français|Math SN|Math CST|Anglais
-C013,Salle régulière 10,32,Espagnol|Français|Math SN|Math CST|Anglais
+C004,Salle régulière 1,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C005,Salle régulière 2,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C006,Salle régulière 3,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C007,Salle régulière 4,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C008,Salle régulière 5,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C009,Salle régulière 6,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C010,Salle régulière 7,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C011,Salle régulière 8,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C012,Salle régulière 9,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C013,Salle régulière 10,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
 C014,Salle multimédia 1,32,Histoire|CCQ
 C015,Salle multimédia 2,32,Histoire|CCQ
 C016,Gymnase 1,32,Éducation physique
