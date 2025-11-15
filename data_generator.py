@@ -34,7 +34,7 @@ def get_course_requirements() -> Dict[CourseType, int]:
 
 
 def generate_sample_data(num_students: int = 56, num_teachers: int = 13, num_classrooms: int = 8,
-                        use_csv_data: bool = True) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student]]:
+                        use_csv_data: bool = True) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student], int]:
     """
     Génère les données d'exemple selon les spécifications:
     - Charge depuis les CSV si use_csv_data=True et que les fichiers existent
@@ -52,7 +52,7 @@ def generate_sample_data(num_students: int = 56, num_teachers: int = 13, num_cla
         use_csv_data: Si True, essaie de charger depuis les CSV (défaut: True)
 
     Returns:
-        (course_requirements, teachers, classrooms, students)
+        (course_requirements, teachers, classrooms, students, min_students_per_session)
     """
 
     # Essayer de charger depuis les CSV
@@ -77,7 +77,7 @@ def generate_sample_data(num_students: int = 56, num_teachers: int = 13, num_cla
 
 
 def load_data_from_csv(eleves_data, enseignants_data, classes_data,
-                       num_students, num_teachers, num_classrooms) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student]]:
+                       num_students, num_teachers, num_classrooms) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student], int]:
     """
     Charge les données depuis les fichiers CSV et les convertit au format attendu.
 
@@ -90,7 +90,7 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
         num_classrooms: Nombre maximum de salles à charger
 
     Returns:
-        (course_requirements, teachers, classrooms, students)
+        (course_requirements, teachers, classrooms, students, min_students_per_session)
     """
     from data_manager import DataManager
 
@@ -98,6 +98,8 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
 
     # 1. Charger les exigences de cours depuis le premier programme trouvé
     programmes = data_manager.lister_programmes()
+    min_students_per_session = 20  # Valeur par défaut
+
     if programmes:
         # Utiliser le premier élève pour déterminer quel programme charger
         if eleves_data and eleves_data[0].programme in programmes:
@@ -108,6 +110,7 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
 
         if programme:
             course_requirements = programme.cours
+            min_students_per_session = programme.min_etudiants_par_session
         else:
             course_requirements = get_course_requirements()
     else:
@@ -199,10 +202,10 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
             grade=4  # Tous en Secondaire 4
         ))
 
-    return course_requirements, teachers, classrooms, students
+    return course_requirements, teachers, classrooms, students, min_students_per_session
 
 
-def generate_default_data(num_students: int, num_teachers: int, num_classrooms: int) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student]]:
+def generate_default_data(num_students: int, num_teachers: int, num_classrooms: int) -> Tuple[Dict[CourseType, int], List[Teacher], List[Classroom], List[Student], int]:
     """
     Génère des données par défaut (ancienne fonction generate_sample_data).
 
@@ -212,7 +215,7 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
         num_classrooms: Nombre de salles à générer
 
     Returns:
-        (course_requirements, teachers, classrooms, students)
+        (course_requirements, teachers, classrooms, students, min_students_per_session)
     """
 
     # Créer les étudiants (nombre configurable, tous en Secondaire 4)
@@ -351,12 +354,12 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
                 # Si aucune salle compatible, utiliser n'importe quelle salle préférable
                 teacher.preferred_classroom = preferable_classrooms[i % len(preferable_classrooms)]
 
-    return course_requirements, teachers, classrooms, students
+    return course_requirements, teachers, classrooms, students, 20  # Minimum 20 étudiants par session par défaut
 
 
 if __name__ == "__main__":
     # Test de génération
-    course_requirements, teachers, classrooms, students = generate_sample_data()
+    course_requirements, teachers, classrooms, students, min_students_per_session = generate_sample_data()
 
     print(f"Généré:")
     total_courses = sum(course_requirements.values())
@@ -364,6 +367,7 @@ if __name__ == "__main__":
     print(f"  - {len(teachers)} enseignants")
     print(f"  - {len(classrooms)} salles")
     print(f"  - {len(students)} étudiants")
+    print(f"  - Minimum {min_students_per_session} étudiants par session")
 
     print("\nExigences de cours (par étudiant):")
     for course_type, count in sorted(course_requirements.items(), key=lambda x: x[0].value):

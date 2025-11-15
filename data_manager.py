@@ -15,13 +15,15 @@ class Programme:
     nom: str
     cours: Dict[CourseType, int]  # CourseType -> nombre de cours
     description: str = ""
+    min_etudiants_par_session: int = 20  # Nombre minimum d'étudiants par session de cours
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit le programme en dictionnaire pour la sérialisation JSON."""
         return {
             'nom': self.nom,
             'cours': {ct.value: count for ct, count in self.cours.items()},
-            'description': self.description
+            'description': self.description,
+            'min_etudiants_par_session': self.min_etudiants_par_session
         }
 
     @staticmethod
@@ -31,7 +33,8 @@ class Programme:
         return Programme(
             nom=data['nom'],
             cours=cours,
-            description=data.get('description', '')
+            description=data.get('description', ''),
+            min_etudiants_par_session=data.get('min_etudiants_par_session', 20)
         )
 
 
@@ -262,7 +265,8 @@ def creer_programmes_par_defaut(data_manager: DataManager) -> None:
             CourseType.EDUC: 2,
             CourseType.OPTION: 2
         },
-        description="Programme régulier pour les élèves de Secondaire 4 au Québec"
+        description="Programme régulier pour les élèves de Secondaire 4 au Québec",
+        min_etudiants_par_session=20
     )
     data_manager.sauvegarder_programme(programme_sec4)
 
@@ -280,6 +284,7 @@ def creer_programmes_par_defaut(data_manager: DataManager) -> None:
             CourseType.CCQ: 2,
             CourseType.EDUC: 2
         },
-        description="Programme enrichi en sciences pour les élèves de Secondaire 4"
+        description="Programme enrichi en sciences pour les élèves de Secondaire 4",
+        min_etudiants_par_session=20
     )
     data_manager.sauvegarder_programme(programme_sciences)

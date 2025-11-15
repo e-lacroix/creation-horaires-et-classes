@@ -11,5 +11,6 @@
     "CCQ": 2,
     "Éducation physique": 2
   },
-  "description": "Programme enrichi en sciences pour les élèves de Secondaire 4"
+  "description": "Programme enrichi en sciences pour les élèves de Secondaire 4",
+  "min_etudiants_par_session": 20
 }

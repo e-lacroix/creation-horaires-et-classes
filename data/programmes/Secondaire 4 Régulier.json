@@ -13,5 +13,6 @@
     "Éducation physique": 2,
     "Option": 2
   },
-  "description": "Programme régulier pour les élèves de Secondaire 4 au Québec"
+  "description": "Programme régulier pour les élèves de Secondaire 4 au Québec",
+  "min_etudiants_par_session": 20
 }

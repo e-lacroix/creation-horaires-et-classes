@@ -304,7 +304,7 @@ class SchedulerApp:
 
             # Générer les données (charge depuis CSV ou utilise les valeurs par défaut)
             # Utiliser des limites élevées pour charger toutes les données depuis les CSV
-            self.course_requirements, self.teachers, self.classrooms, self.students = \
+            self.course_requirements, self.teachers, self.classrooms, self.students, self.min_students_per_session = \
                 generate_sample_data(num_students=200, num_teachers=50, num_classrooms=30, use_csv_data=True)
 
             num_students = len(self.students)
@@ -321,7 +321,8 @@ class SchedulerApp:
                 self.teachers,
                 self.classrooms,
                 self.students,
-                self.course_requirements
+                self.course_requirements,
+                self.min_students_per_session
             )
 
             success, sessions, student_schedules = optimizer.solve()

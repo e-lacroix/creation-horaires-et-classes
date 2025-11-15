@@ -13,18 +13,21 @@ class ScheduleOptimizer:
     """Optimise l'attribution des cours avec horaires individuels par étudiant"""
 
     def __init__(self, teachers: List[Teacher], classrooms: List[Classroom],
-                 students: List[Student], course_requirements: Dict[CourseType, int]):
+                 students: List[Student], course_requirements: Dict[CourseType, int],
+                 min_students_per_session: int = 20):
         """
         Args:
             teachers: Liste des enseignants disponibles
             classrooms: Liste des salles disponibles
             students: Liste des étudiants
             course_requirements: Dictionnaire {CourseType: nombre_de_cours}
+            min_students_per_session: Nombre minimum d'étudiants par session (défaut: 20)
         """
         self.teachers = teachers
         self.classrooms = classrooms
         self.students = students
         self.course_requirements = course_requirements  # Ex: {SCIENCE: 4, FRANCAIS: 6, ...}
+        self.min_students_per_session = min_students_per_session
         self.model = cp_model.CpModel()
         self.timeslots = [TimeSlot(day=d, period=p) for d in range(1, 10) for p in range(1, 5)]
 
@@ -210,6 +213,24 @@ class ScheduleOptimizer:
                     # Maximum 1 cours de ce type ce jour
                     if courses_on_this_day:
                         self.model.Add(sum(courses_on_this_day) <= 1)
+
+        # Contrainte 11: Une session active doit avoir au minimum min_students_per_session étudiants
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                students_in_session = []
+                for student in self.students:
+                    num_courses = self.course_requirements[course_type]
+                    for course_num in range(num_courses):
+                        students_in_session.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+
+                if students_in_session:
+                    num_students = sum(students_in_session)
+                    # Si la session est active, elle doit avoir au moins min_students_per_session étudiants
+                    self.model.Add(num_students >= self.min_students_per_session).OnlyEnforceIf(
+                        self.session_active[course_type][timeslot]
+                    )
 
     def add_optimization_objectives(self):
         """Ajoute des objectifs d'optimisation"""
