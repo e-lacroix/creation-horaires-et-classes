@@ -50,6 +50,12 @@ class Classroom:
     id: int
     name: str
     capacity: int = 28
+    allowed_subjects: Optional[List[CourseType]] = None  # Matières autorisées dans cette salle (None = toutes)
+
+    def __post_init__(self):
+        if self.allowed_subjects is None:
+            # Par défaut, toutes les matières sont autorisées
+            self.allowed_subjects = list(CourseType)
 
     def __hash__(self):
         return hash(self.id)

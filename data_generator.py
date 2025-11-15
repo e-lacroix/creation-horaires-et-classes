@@ -145,10 +145,34 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
     # 3. Convertir les salles de classe
     classrooms = []
     for i, classe_data in enumerate(classes_data[:num_classrooms]):
+        # Déterminer les matières autorisées en fonction du nom de la salle
+        allowed_subjects = None
+        if classe_data.matieres_autorisees:
+            # Si les matières sont spécifiées dans le CSV
+            allowed_subjects = []
+            for matiere in classe_data.matieres_autorisees:
+                if matiere in mapping_matieres:
+                    allowed_subjects.append(mapping_matieres[matiere])
+        else:
+            # Sinon, déterminer automatiquement selon le nom
+            nom_lower = classe_data.nom.lower()
+            if "laboratoire" in nom_lower or "labo" in nom_lower:
+                allowed_subjects = [CourseType.SCIENCE, CourseType.STE, CourseType.ASC]
+            elif "gymnase" in nom_lower or "gym" in nom_lower:
+                allowed_subjects = [CourseType.EDUC]
+            elif "arts" in nom_lower or "art" in nom_lower:
+                allowed_subjects = [CourseType.OPTION]
+            elif "multimédia" in nom_lower or "multimedia" in nom_lower or "informatique" in nom_lower:
+                allowed_subjects = [CourseType.HISTOIRE, CourseType.CCQ]
+            else:
+                # Salle régulière par défaut
+                allowed_subjects = [CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.ANGLAIS]
+
         classrooms.append(Classroom(
             id=i + 1,
             name=classe_data.nom,
-            capacity=classe_data.capacite
+            capacity=classe_data.capacite,
+            allowed_subjects=allowed_subjects
         ))
 
     # 4. Assigner les salles préférées aux enseignants
@@ -159,7 +183,10 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
             try:
                 classe_id = int(ens_data.classe_preferee[1:])
                 if classe_id in classroom_dict:
-                    teachers[i].preferred_classroom = classroom_dict[classe_id]
+                    classroom = classroom_dict[classe_id]
+                    # Ne pas permettre les gymnases comme salles préférées
+                    if "gymnase" not in classroom.name.lower() and "gym" not in classroom.name.lower():
+                        teachers[i].preferred_classroom = classroom
             except:
                 pass
 
@@ -212,7 +239,8 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
         ("Anglais", [CourseType.ANGLAIS], 4),
         ("Histoire", [CourseType.HISTOIRE, CourseType.CCQ], 6),  # 4+2 = 6 cours
         ("Espagnol", [CourseType.ESPAGNOL], 2),
-        ("Éducation physique", [CourseType.EDUC, CourseType.OPTION], 4),  # 2+2 = 4 cours
+        ("Éducation physique", [CourseType.EDUC], 2),  # 2 cours
+        ("Option", [CourseType.OPTION], 2),  # 2 cours
     ]
 
     # Calculer le poids total
@@ -256,19 +284,72 @@ def generate_default_data(num_students: int, num_teachers: int, num_classrooms: 
         teacher_id += 1
         teachers_assigned += 1
 
-    # Créer les salles de classe
+    # Créer les salles de classe avec types spécifiques
     classrooms = []
-    for i in range(num_classrooms):
+    classroom_id = 1
+
+    # Définir les types de salles nécessaires
+    # Format: (nom_base, matières_autorisées, nombre_min, est_salle_preferee_possible)
+    classroom_types = [
+        ("Laboratoire", [CourseType.SCIENCE, CourseType.STE, CourseType.ASC], 2, True),
+        ("Gymnase", [CourseType.EDUC], 1, False),  # Gymnase ne peut pas être une salle préférée
+        ("Salle d'arts", [CourseType.OPTION], 1, True),
+        ("Salle multimédia", [CourseType.HISTOIRE, CourseType.CCQ], 1, True),
+        ("Salle régulière", [CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.ANGLAIS], 3, True),
+    ]
+
+    # Créer les salles selon les types
+    for room_type_name, allowed_subjects, min_count, can_be_preferred in classroom_types:
+        # Calculer combien de salles de ce type créer
+        num_rooms = max(min_count, num_classrooms // len(classroom_types))
+
+        # Limiter pour ne pas dépasser le total
+        if classroom_id + num_rooms - 1 > num_classrooms:
+            num_rooms = num_classrooms - classroom_id + 1
+
+        for i in range(num_rooms):
+            if classroom_id > num_classrooms:
+                break
+
+            room_name = f"{room_type_name} {i + 1}" if num_rooms > 1 else room_type_name
+            classrooms.append(Classroom(
+                id=classroom_id,
+                name=room_name,
+                capacity=28,
+                allowed_subjects=allowed_subjects.copy()
+            ))
+            classroom_id += 1
+
+        if classroom_id > num_classrooms:
+            break
+
+    # Si on n'a pas assez de salles, ajouter des salles régulières
+    while len(classrooms) < num_classrooms:
         classrooms.append(Classroom(
-            id=i + 1,
-            name=f"Salle {i + 1}",
-            capacity=28
+            id=classroom_id,
+            name=f"Salle régulière {classroom_id}",
+            capacity=28,
+            allowed_subjects=[CourseType.ESPAGNOL, CourseType.FRANCAIS, CourseType.MATH_SN, CourseType.ANGLAIS]
         ))
+        classroom_id += 1
 
     # Assigner une salle préférée à chaque enseignant
-    # Les enseignants partagent des salles si nécessaire (distribution cyclique)
+    # Filtrer les salles qui peuvent être préférées (pas les gymnases)
+    preferable_classrooms = [c for c in classrooms if "Gymnase" not in c.name and "gymnase" not in c.name.lower()]
+
     for i, teacher in enumerate(teachers):
-        teacher.preferred_classroom = classrooms[i % len(classrooms)]
+        if preferable_classrooms:
+            # Essayer de trouver une salle compatible avec les matières enseignées
+            compatible_rooms = [
+                room for room in preferable_classrooms
+                if any(course in room.allowed_subjects for course in teacher.can_teach)
+            ]
+
+            if compatible_rooms:
+                teacher.preferred_classroom = compatible_rooms[i % len(compatible_rooms)]
+            else:
+                # Si aucune salle compatible, utiliser n'importe quelle salle préférable
+                teacher.preferred_classroom = preferable_classrooms[i % len(preferable_classrooms)]
 
     return course_requirements, teachers, classrooms, students
 

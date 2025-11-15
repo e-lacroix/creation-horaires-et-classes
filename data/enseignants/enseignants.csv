@@ -1,14 +1,14 @@
 Nom,Identifiant,Matières,Restrictions,Classe Préférée
-Marie Dubois,T001,Science|STE|ASC,,C003
-Jean Martin,T002,Science|STE,,C004
-Sophie Bernard,T003,Français,,C008
-Pierre Lefevre,T004,Français,,C008
+Marie Dubois,T001,Science|STE|ASC,,C006
+Jean Martin,T002,Science|STE,mercredi_matin,C003
+Sophie Bernard,T003,Français,,C005
+Pierre Lefevre,T004,Français,,C006
 Isabelle Morin,T005,Math SN,,C004
-François Girard,T006,Math SN,,C007
-Catherine Leblanc,T007,Anglais,,C007
-Michel Roy,T008,Anglais,,C002
-Julie Gagnon,T009,Histoire|CCQ,,C006
-Robert Tremblay,T010,Histoire,,C007
-Nathalie Bouchard,T011,Espagnol,mercredi_matin,C001
-Daniel Fortin,T012,Éducation physique|Option,,C007
-Sylvie Pelletier,T013,Option|CCQ,,C006
+François Girard,T006,Math SN,,C006
+Catherine Leblanc,T007,Anglais,,C004
+Michel Roy,T008,Anglais,,C008
+Julie Gagnon,T009,Histoire|CCQ,,C002
+Robert Tremblay,T010,Histoire,,C008
+Nathalie Bouchard,T011,Espagnol,,C004
+Daniel Fortin,T012,Éducation physique,,
+Sylvie Pelletier,T013,Option,,C005

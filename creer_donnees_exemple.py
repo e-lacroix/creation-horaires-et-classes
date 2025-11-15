@@ -75,22 +75,22 @@ def creer_donnees_exemple():
     print("\nCréation des enseignants d'exemple...")
     enseignants = []
     noms_enseignants = [
-        ("Marie Dubois", ["Science", "STE", "ASC"]),
-        ("Jean Martin", ["Science", "STE"]),
-        ("Sophie Bernard", ["Français"]),
-        ("Pierre Lefevre", ["Français"]),
-        ("Isabelle Morin", ["Math SN"]),
-        ("François Girard", ["Math SN"]),
-        ("Catherine Leblanc", ["Anglais"]),
-        ("Michel Roy", ["Anglais"]),
-        ("Julie Gagnon", ["Histoire", "CCQ"]),
-        ("Robert Tremblay", ["Histoire"]),
-        ("Nathalie Bouchard", ["Espagnol"]),
-        ("Daniel Fortin", ["Éducation physique", "Option"]),
-        ("Sylvie Pelletier", ["Option", "CCQ"])
+        ("Marie Dubois", ["Science", "STE", "ASC"], False),
+        ("Jean Martin", ["Science", "STE"], False),
+        ("Sophie Bernard", ["Français"], False),
+        ("Pierre Lefevre", ["Français"], False),
+        ("Isabelle Morin", ["Math SN"], False),
+        ("François Girard", ["Math SN"], False),
+        ("Catherine Leblanc", ["Anglais"], False),
+        ("Michel Roy", ["Anglais"], False),
+        ("Julie Gagnon", ["Histoire", "CCQ"], False),
+        ("Robert Tremblay", ["Histoire"], False),
+        ("Nathalie Bouchard", ["Espagnol"], False),
+        ("Daniel Fortin", ["Éducation physique"], True),  # Enseignant de gym, pas de classe préférée
+        ("Sylvie Pelletier", ["Option"], False)  # Enseignant d'option séparé
     ]
 
-    for i, (nom, matieres) in enumerate(noms_enseignants):
+    for i, (nom, matieres, est_enseignant_gym) in enumerate(noms_enseignants):
         identifiant = f"T{i+1:03d}"
 
         # 10% des enseignants ont des restrictions
@@ -98,8 +98,15 @@ def creer_donnees_exemple():
         if random.random() < 0.1:
             restrictions = "mercredi_matin"
 
-        # Classe préférée aléatoire
-        classe_preferee = f"C{random.randint(1, 8):03d}"
+        # Classe préférée aléatoire (mais pas le gymnase)
+        # Les classes 1-2 sont des laboratoires, 3-5 sont régulières, 6 est multimédia, 7 est gymnase, 8 est salle d'arts
+        if est_enseignant_gym:
+            # Pas de classe préférée pour les enseignants de gym
+            classe_preferee = ""
+        else:
+            # Éviter la classe 7 (gymnase)
+            choix_classes = [1, 2, 3, 4, 5, 6, 8]
+            classe_preferee = f"C{random.choice(choix_classes):03d}"
 
         enseignants.append(EnseignantData(
             nom=nom,
@@ -118,14 +125,14 @@ def creer_donnees_exemple():
 
     # Définition des types de salles avec matières autorisées
     types_salles = [
-        ("Laboratoire Science 1", 28, ["Science", "STE", "ASC"]),
-        ("Laboratoire Science 2", 28, ["Science", "STE", "ASC"]),
-        ("Salle régulière 1", 30, ["Français", "Math SN", "Anglais", "Histoire", "CCQ", "Espagnol"]),
-        ("Salle régulière 2", 30, ["Français", "Math SN", "Anglais", "Histoire", "CCQ", "Espagnol"]),
-        ("Salle régulière 3", 30, ["Français", "Math SN", "Anglais", "Histoire", "CCQ", "Espagnol"]),
-        ("Salle multimédia", 25, ["Anglais", "Espagnol", "Option"]),
-        ("Gymnase", 35, ["Éducation physique"]),
-        ("Salle d'arts", 25, ["Option"])
+        ("Laboratoire 1", 28, ["Science", "STE", "ASC"]),
+        ("Laboratoire 2", 28, ["Science", "STE", "ASC"]),
+        ("Salle régulière 1", 28, ["Espagnol", "Français", "Math SN", "Anglais"]),
+        ("Salle régulière 2", 28, ["Espagnol", "Français", "Math SN", "Anglais"]),
+        ("Salle régulière 3", 28, ["Espagnol", "Français", "Math SN", "Anglais"]),
+        ("Salle multimédia", 28, ["Histoire", "CCQ"]),
+        ("Gymnase", 28, ["Éducation physique"]),
+        ("Salle d'arts", 28, ["Option"])
     ]
 
     for i, (nom, capacite, matieres) in enumerate(types_salles):
