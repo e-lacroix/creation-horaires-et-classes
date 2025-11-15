@@ -313,7 +313,7 @@ class SchedulerApp:
 
             self.status_var.set(f"Données chargées: {num_students} étudiants, {num_teachers} enseignants, {num_classrooms} salles...")
 
-            self.status_var.set("Optimisation en cours... (peut prendre jusqu'à 2 minutes)")
+            self.status_var.set("Optimisation en cours... (peut prendre jusqu'à 10 minutes)")
             self.root.update()
 
             # Optimisation

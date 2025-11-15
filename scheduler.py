@@ -289,7 +289,7 @@ class ScheduleOptimizer:
 
         print("Lancement du solveur...")
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 120.0  # Augmenté à 2 minutes
+        solver.parameters.max_time_in_seconds = 600.0  # 10 minutes pour 176 élèves
         solver.parameters.num_search_workers = 8
         solver.parameters.log_search_progress = True
 

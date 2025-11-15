@@ -161,7 +161,7 @@ Students reference programs by name in their CSV entry. The system loads course 
 
 - The project uses French terminology to match Quebec educational context
 - Timeslots are 1-indexed (Day 1-9, Period 1-4)
-- Solver timeout set to 120 seconds (2 minutes); may need adjustment for larger instances
+- Solver timeout set to 600 seconds (10 minutes); configured for 176 students
 - Excel export creates 3-sheet workbook: Sessions, Individual Schedules, Teacher Assignments
 - Each student receives a personalized schedule with the same course requirements
 - Sessions are dynamically created to group students efficiently
