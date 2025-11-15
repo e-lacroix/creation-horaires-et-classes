@@ -13,6 +13,7 @@ class CourseType(Enum):
     ASC = "ASC"  # Applications technologiques et scientifiques
     FRANCAIS = "Français"
     MATH_SN = "Math SN"  # Séquence Sciences Naturelles
+    MATH_CST = "Math CST"  # Séquence Culture, Société et Technique
     ANGLAIS = "Anglais"
     HISTOIRE = "Histoire"
     CCQ = "CCQ"  # Culture et citoyenneté québécoise
