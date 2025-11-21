@@ -135,7 +135,15 @@ class ScheduleOptimizer:
         self.min_students_per_session = self.grouping_option.group_size.min_students
         self.max_students_per_session = self.grouping_option.group_size.max_students
         self.model = cp_model.CpModel()
-        self.timeslots = [TimeSlot(day=d, period=p) for d in range(1, 10) for p in range(1, 5)]
+
+        # Calculer le nombre optimal de jours nécessaires
+        total_courses = sum(self.course_requirements.values())
+        periods_per_day = 4
+        min_days_needed = (total_courses + periods_per_day - 1) // periods_per_day  # Arrondi supérieur
+        num_days = max(min_days_needed, 9)  # Au moins le minimum, max 9
+
+        print(f"Utilisation de {num_days} jours pour {total_courses} cours par étudiant")
+        self.timeslots = [TimeSlot(day=d, period=p) for d in range(1, num_days + 1) for p in range(1, periods_per_day + 1)]
 
         # Variables de décision
         self.student_course_timeslot = {}  # [student_id][course_type][course_num][timeslot]
@@ -400,6 +408,46 @@ class ScheduleOptimizer:
             # Priorité maximale sur les salles préférées
             self.model.Minimize(100 * sum(total_sessions) + 1000 * sum(away_from_home))
 
+    def generate_greedy_initial_solution(self) -> Dict:
+        """
+        Génère une solution initiale gloutonne pour guider le solveur
+        Approche: Assigner les cours aux premiers timeslots disponibles en respectant les contraintes de base
+        """
+        print("Génération d'une solution initiale gloutonne...")
+        hints = {}
+
+        # Pour chaque étudiant, assigner les cours de manière gloutonne
+        for student in self.students:
+            student_schedule = {}  # {timeslot: (course_type, course_num)}
+
+            for course_type, num_courses in self.course_requirements.items():
+                courses_assigned = 0
+                day_usage = defaultdict(int)  # Combien de fois ce type de cours est utilisé par jour
+
+                for course_num in range(num_courses):
+                    # Chercher le premier timeslot disponible
+                    for timeslot in self.timeslots:
+                        # Vérifier si le timeslot est libre
+                        if timeslot in student_schedule:
+                            continue
+
+                        # Vérifier la contrainte "1 cours par type par jour"
+                        if day_usage[timeslot.day] >= 1:
+                            continue
+
+                        # Assigner ce cours à ce timeslot
+                        student_schedule[timeslot] = (course_type, course_num)
+                        day_usage[timeslot.day] += 1
+
+                        # Stocker le hint
+                        var = self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        hints[var] = 1
+                        courses_assigned += 1
+                        break
+
+        print(f"Solution initiale générée avec {len(hints)} hints")
+        return hints
+
     def solve_student_schedules_only(self) -> Tuple[bool, List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
         """
         ÉTAPE 2: Résout UNIQUEMENT les horaires des étudiants sans assigner enseignants/salles
@@ -502,6 +550,11 @@ class ScheduleOptimizer:
                     if courses_on_this_day:
                         self.model.Add(sum(courses_on_this_day) <= 1)
 
+        # Générer une solution initiale pour guider le solveur (AVANT l'objectif)
+        hints = self.generate_greedy_initial_solution()
+        for var, value in hints.items():
+            self.model.AddHint(var, value)
+
         # Objectif: Minimiser le nombre de sessions actives
         print("Ajout de l'objectif: minimiser les sessions...")
         total_sessions = []
@@ -513,9 +566,24 @@ class ScheduleOptimizer:
         # Résolution
         print("Lancement du solveur pour horaires étudiants...")
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 7200.0
+
+        # Paramètres optimisés pour la performance
+        solver.parameters.max_time_in_seconds = 300.0  # 5 minutes max
         solver.parameters.num_search_workers = 8
         solver.parameters.log_search_progress = True
+
+        # Stratégies pour accélérer la recherche
+        solver.parameters.cp_model_presolve = True  # Simplifie le modèle avant résolution
+        solver.parameters.cp_model_probing_level = 2  # Niveau de probing modéré
+        solver.parameters.linearization_level = 2  # Linéarisation pour simplifier
+        solver.parameters.symmetry_level = 2  # Détecte et casse les symétries
+
+        # Stratégie de recherche plus agressive (privilégie les solutions rapides)
+        solver.parameters.search_branching = cp_model.PORTFOLIO_SEARCH
+        solver.parameters.enumerate_all_solutions = False
+
+        # Accepter une solution "assez bonne" plutôt que chercher l'optimal
+        solver.parameters.relative_gap_limit = 0.05  # Accepte 5% de sous-optimalité
 
         status = solver.Solve(self.model)
 
@@ -674,8 +742,17 @@ class ScheduleOptimizer:
         # Résolution
         print("Lancement du solveur pour enseignants et salles...")
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 600.0  # 10 minutes
+
+        # Paramètres optimisés (cette étape est plus rapide)
+        solver.parameters.max_time_in_seconds = 120.0  # 2 minutes max
         solver.parameters.num_search_workers = 8
+        solver.parameters.log_search_progress = True
+
+        # Optimisations similaires
+        solver.parameters.cp_model_presolve = True
+        solver.parameters.linearization_level = 2
+        solver.parameters.symmetry_level = 2
+        solver.parameters.search_branching = cp_model.PORTFOLIO_SEARCH
 
         status = solver.Solve(model)
 
