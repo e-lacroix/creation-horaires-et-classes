@@ -1,33 +1,139 @@
 """
 Optimiseur d'horaires utilisant Google OR-Tools
 Nouvelle approche : horaires individuels par étudiant avec sessions de cours dynamiques
+Processus en 3 étapes : 1) Options de regroupement, 2) Horaires étudiants, 3) Assignation enseignants
 """
 from ortools.sat.python import cp_model
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from models import (CourseSession, TimeSlot, Teacher, Classroom, Student,
                    CourseType, StudentScheduleEntry)
 from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
+
+
+class GroupingStrategy(Enum):
+    """Stratégies d'optimisation pour le regroupement"""
+    MINIMIZE_SESSIONS = "Minimiser le nombre de sessions"
+    BALANCE_GROUPS = "Équilibrer les groupes"
+    MAXIMIZE_PREFERRED_ROOMS = "Maximiser l'utilisation des salles préférées"
+
+
+class ProgramVariant(Enum):
+    """Variantes de regroupement basées sur les programmes"""
+    GROUP_BY_PROGRAM = "Regrouper par programme"
+    MIX_PROGRAMS = "Mélanger les programmes"
+    BALANCED = "Équilibré"
+
+
+@dataclass
+class GroupSizeOption:
+    """Option de taille de groupe"""
+    name: str
+    min_students: int
+    max_students: int
+    description: str
+
+
+@dataclass
+class GroupingOption:
+    """Configuration complète de regroupement"""
+    id: int
+    name: str
+    group_size: GroupSizeOption
+    strategy: GroupingStrategy
+    program_variant: ProgramVariant
+    estimated_sessions: int = 0
+    avg_group_size: float = 0.0
+    description: str = ""
 
 
 class ScheduleOptimizer:
     """Optimise l'attribution des cours avec horaires individuels par étudiant"""
 
+    # Définition des options de taille de groupe
+    GROUP_SIZE_OPTIONS = [
+        GroupSizeOption("Petits groupes", 15, 20, "Groupes de 15-20 étudiants (plus de sessions, plus d'attention individuelle)"),
+        GroupSizeOption("Groupes moyens", 20, 25, "Groupes de 20-25 étudiants (équilibre entre taille et ressources)"),
+        GroupSizeOption("Grands groupes", 25, 32, "Groupes de 25-32 étudiants (moins de sessions, optimisation des ressources)")
+    ]
+
+    @staticmethod
+    def generate_grouping_options(students: List[Student], course_requirements: Dict[CourseType, int]) -> List[GroupingOption]:
+        """
+        Génère 9 options de regroupement combinant tailles de groupe, stratégies et variantes de programme
+
+        Returns:
+            Liste de 9 GroupingOption avec estimations
+        """
+        options = []
+        option_id = 0
+
+        strategies = list(GroupingStrategy)
+        program_variants = list(ProgramVariant)
+
+        for group_size in ScheduleOptimizer.GROUP_SIZE_OPTIONS:
+            for strategy in strategies:
+                for variant in program_variants:
+                    # Estimer le nombre de sessions et la taille moyenne des groupes
+                    total_courses = sum(course_requirements.values())
+                    total_student_courses = len(students) * total_courses
+
+                    # Estimation du nombre de sessions basée sur la taille min/max
+                    avg_size = (group_size.min_students + group_size.max_students) / 2
+                    estimated_sessions = int(total_student_courses / avg_size)
+
+                    # Ajuster selon la stratégie
+                    if strategy == GroupingStrategy.MINIMIZE_SESSIONS:
+                        estimated_sessions = int(estimated_sessions * 0.9)  # Viser moins de sessions
+                    elif strategy == GroupingStrategy.BALANCE_GROUPS:
+                        estimated_sessions = int(estimated_sessions * 1.0)  # Neutre
+                    elif strategy == GroupingStrategy.MAXIMIZE_PREFERRED_ROOMS:
+                        estimated_sessions = int(estimated_sessions * 1.1)  # Plus de flexibilité
+
+                    # Construire le nom et la description
+                    name = f"Option {option_id + 1}: {group_size.name}"
+                    description = f"{strategy.value} | {variant.value}\n{group_size.description}"
+
+                    option = GroupingOption(
+                        id=option_id,
+                        name=name,
+                        group_size=group_size,
+                        strategy=strategy,
+                        program_variant=variant,
+                        estimated_sessions=estimated_sessions,
+                        avg_group_size=avg_size,
+                        description=description
+                    )
+                    options.append(option)
+                    option_id += 1
+
+        return options
+
     def __init__(self, teachers: List[Teacher], classrooms: List[Classroom],
                  students: List[Student], course_requirements: Dict[CourseType, int],
-                 min_students_per_session: int = 20):
+                 grouping_option: Optional[GroupingOption] = None):
         """
         Args:
             teachers: Liste des enseignants disponibles
             classrooms: Liste des salles disponibles
             students: Liste des étudiants
             course_requirements: Dictionnaire {CourseType: nombre_de_cours}
-            min_students_per_session: Nombre minimum d'étudiants par session (défaut: 20)
+            grouping_option: Option de regroupement sélectionnée (None pour valeur par défaut)
         """
         self.teachers = teachers
         self.classrooms = classrooms
         self.students = students
-        self.course_requirements = course_requirements  # Ex: {SCIENCE: 4, FRANCAIS: 6, ...}
-        self.min_students_per_session = min_students_per_session
+        self.course_requirements = course_requirements
+        self.grouping_option = grouping_option or GroupingOption(
+            id=0,
+            name="Défaut",
+            group_size=self.GROUP_SIZE_OPTIONS[1],  # Moyens
+            strategy=GroupingStrategy.MINIMIZE_SESSIONS,
+            program_variant=ProgramVariant.BALANCED
+        )
+        self.min_students_per_session = self.grouping_option.group_size.min_students
+        self.max_students_per_session = self.grouping_option.group_size.max_students
         self.model = cp_model.CpModel()
         self.timeslots = [TimeSlot(day=d, period=p) for d in range(1, 10) for p in range(1, 5)]
 
@@ -186,7 +292,7 @@ class ScheduleOptimizer:
                             # Forcer cette variable à 0 (cette salle ne peut pas accueillir ce cours)
                             self.model.Add(self.session_room[course_type][timeslot][room.id] == 0)
 
-        # Contrainte 9: Maximum 32 étudiants par session
+        # Contrainte 9: Maximum d'étudiants par session (selon l'option choisie)
         for course_type in self.course_requirements.keys():
             for timeslot in self.timeslots:
                 students_in_session = []
@@ -197,7 +303,7 @@ class ScheduleOptimizer:
                             self.student_course_timeslot[student.id][course_type][course_num][timeslot]
                         )
                 if students_in_session:
-                    self.model.Add(sum(students_in_session) <= 32)
+                    self.model.Add(sum(students_in_session) <= self.max_students_per_session)
 
         # Contrainte 10: Un étudiant ne peut avoir qu'un cours de la même matière par jour
         for student in self.students:
@@ -233,32 +339,46 @@ class ScheduleOptimizer:
                     )
 
     def add_optimization_objectives(self):
-        """Ajoute des objectifs d'optimisation"""
-        print("Ajout des objectifs d'optimisation...")
+        """Ajoute des objectifs d'optimisation selon la stratégie choisie"""
+        print(f"Ajout des objectifs d'optimisation (stratégie: {self.grouping_option.strategy.value})...")
 
-        # Objectif principal: Minimiser le nombre de sessions actives
-        # (moins de sessions = moins de salles et d'enseignants utilisés)
+        # Objectif 1: Nombre de sessions actives
         total_sessions = []
         for course_type in self.course_requirements.keys():
             for timeslot in self.timeslots:
                 total_sessions.append(self.session_active[course_type][timeslot])
 
-        # Objectif secondaire: Préférer que les enseignants restent dans leur salle préférée
-        # Compter combien de fois un enseignant est dans une salle qui n'est PAS sa salle préférée
+        # Objectif 2: Variance dans la taille des groupes (pour équilibrage)
+        # On veut que toutes les sessions aient approximativement la même taille
+        session_size_vars = []
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                students_in_session = []
+                for student in self.students:
+                    num_courses = self.course_requirements[course_type]
+                    for course_num in range(num_courses):
+                        students_in_session.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+                if students_in_session:
+                    # Créer une variable pour la taille de cette session
+                    size_var = self.model.NewIntVar(0, self.max_students_per_session,
+                                                     f'size_{course_type.name}_{timeslot.day}_{timeslot.period}')
+                    self.model.Add(size_var == sum(students_in_session))
+                    session_size_vars.append(size_var)
+
+        # Objectif 3: Préférer que les enseignants restent dans leur salle préférée
         away_from_home = []
         for course_type in self.course_requirements.keys():
             for timeslot in self.timeslots:
                 for teacher in self.teachers:
                     if course_type in teacher.can_teach and teacher.id in self.session_teacher[course_type][timeslot]:
                         if teacher.preferred_classroom:
-                            # Créer une variable qui est 1 si: enseignant assigné ET salle != salle préférée
                             for room in self.classrooms:
                                 if room.id != teacher.preferred_classroom.id:
-                                    # Variable temporaire: teacher assigned AND room assigned
                                     both_assigned = self.model.NewBoolVar(
                                         f'away_{course_type.name}_{timeslot.day}_{timeslot.period}_t{teacher.id}_r{room.id}'
                                     )
-                                    # both_assigned == 1 ssi les deux sont vrais
                                     self.model.AddMultiplicationEquality(
                                         both_assigned,
                                         [
@@ -268,14 +388,325 @@ class ScheduleOptimizer:
                                     )
                                     away_from_home.append(both_assigned)
 
-        # Objectif combiné: minimiser les sessions (priorité haute) + minimiser les changements de salle (priorité basse)
-        # Poids: 1000 pour les sessions, 1 pour les changements de salle
-        # Cela garantit qu'on minimise d'abord les sessions, puis on optimise les salles
-        self.model.Minimize(1000 * sum(total_sessions) + sum(away_from_home))
+        # Combiner les objectifs selon la stratégie
+        if self.grouping_option.strategy == GroupingStrategy.MINIMIZE_SESSIONS:
+            # Priorité maximale sur la minimisation des sessions
+            self.model.Minimize(1000 * sum(total_sessions) + sum(away_from_home))
+        elif self.grouping_option.strategy == GroupingStrategy.BALANCE_GROUPS:
+            # Priorité sur l'équilibrage des groupes (minimiser variance) et sessions
+            # Note: Pour simplifier, on minimise les sessions et on compte sur la contrainte min/max
+            self.model.Minimize(500 * sum(total_sessions) + sum(away_from_home))
+        elif self.grouping_option.strategy == GroupingStrategy.MAXIMIZE_PREFERRED_ROOMS:
+            # Priorité maximale sur les salles préférées
+            self.model.Minimize(100 * sum(total_sessions) + 1000 * sum(away_from_home))
+
+    def solve_student_schedules_only(self) -> Tuple[bool, List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
+        """
+        ÉTAPE 2: Résout UNIQUEMENT les horaires des étudiants sans assigner enseignants/salles
+
+        Returns:
+            (success, sessions, student_schedules)
+            - success: True si une solution a été trouvée
+            - sessions: Liste des sessions de cours créées (sans enseignant ni salle assignés)
+            - student_schedules: Dict {student_id: [StudentScheduleEntry]}
+        """
+        # Créer un modèle simplifié sans variables d'enseignant/salle
+        print("Création des variables pour horaires étudiants...")
+
+        # Variables pour chaque étudiant et chaque type de cours
+        for student in self.students:
+            self.student_course_timeslot[student.id] = {}
+            for course_type, num_courses in self.course_requirements.items():
+                self.student_course_timeslot[student.id][course_type] = {}
+                for course_num in range(num_courses):
+                    self.student_course_timeslot[student.id][course_type][course_num] = {}
+                    for timeslot in self.timeslots:
+                        var_name = f'student_{student.id}_type_{course_type.name}_num_{course_num}_ts_{timeslot.day}_{timeslot.period}'
+                        self.student_course_timeslot[student.id][course_type][course_num][timeslot] = \
+                            self.model.NewBoolVar(var_name)
+
+        # Variables pour les sessions actives
+        for course_type in self.course_requirements.keys():
+            self.session_active[course_type] = {}
+            for timeslot in self.timeslots:
+                var_name = f'session_{course_type.name}_ts_{timeslot.day}_{timeslot.period}_active'
+                self.session_active[course_type][timeslot] = self.model.NewBoolVar(var_name)
+
+        print("Ajout des contraintes pour horaires étudiants...")
+
+        # Contrainte 1: Chaque étudiant doit avoir exactement un timeslot pour chaque cours requis
+        for student in self.students:
+            for course_type, num_courses in self.course_requirements.items():
+                for course_num in range(num_courses):
+                    self.model.AddExactlyOne([
+                        self.student_course_timeslot[student.id][course_type][course_num][ts]
+                        for ts in self.timeslots
+                    ])
+
+        # Contrainte 2: Un étudiant ne peut avoir qu'un seul cours à la fois
+        for student in self.students:
+            for timeslot in self.timeslots:
+                courses_at_this_time = []
+                for course_type, num_courses in self.course_requirements.items():
+                    for course_num in range(num_courses):
+                        courses_at_this_time.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+                self.model.Add(sum(courses_at_this_time) <= 1)
+
+        # Contrainte 3: Lien entre présence d'étudiants et activation de session
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                students_in_session = []
+                for student in self.students:
+                    num_courses = self.course_requirements[course_type]
+                    for course_num in range(num_courses):
+                        students_in_session.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+                if students_in_session:
+                    num_students = sum(students_in_session)
+                    self.model.Add(num_students >= 1).OnlyEnforceIf(self.session_active[course_type][timeslot])
+                    self.model.Add(num_students == 0).OnlyEnforceIf(self.session_active[course_type][timeslot].Not())
+
+        # Contrainte 4: Taille min/max des sessions
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                students_in_session = []
+                for student in self.students:
+                    num_courses = self.course_requirements[course_type]
+                    for course_num in range(num_courses):
+                        students_in_session.append(
+                            self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+                if students_in_session:
+                    num_students = sum(students_in_session)
+                    # Min étudiants si session active
+                    self.model.Add(num_students >= self.min_students_per_session).OnlyEnforceIf(
+                        self.session_active[course_type][timeslot]
+                    )
+                    # Max étudiants
+                    self.model.Add(num_students <= self.max_students_per_session)
+
+        # Contrainte 5: Un étudiant ne peut avoir qu'un cours de la même matière par jour
+        for student in self.students:
+            for day in range(1, 10):
+                for course_type, num_courses in self.course_requirements.items():
+                    courses_on_this_day = []
+                    for course_num in range(num_courses):
+                        for period in range(1, 5):
+                            timeslot = TimeSlot(day=day, period=period)
+                            courses_on_this_day.append(
+                                self.student_course_timeslot[student.id][course_type][course_num][timeslot]
+                            )
+                    if courses_on_this_day:
+                        self.model.Add(sum(courses_on_this_day) <= 1)
+
+        # Objectif: Minimiser le nombre de sessions actives
+        print("Ajout de l'objectif: minimiser les sessions...")
+        total_sessions = []
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                total_sessions.append(self.session_active[course_type][timeslot])
+        self.model.Minimize(sum(total_sessions))
+
+        # Résolution
+        print("Lancement du solveur pour horaires étudiants...")
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = 7200.0
+        solver.parameters.num_search_workers = 8
+        solver.parameters.log_search_progress = True
+
+        status = solver.Solve(self.model)
+
+        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+            print(f"Solution trouvée ! Statut: {'OPTIMAL' if status == cp_model.OPTIMAL else 'FEASIBLE'}")
+            sessions, student_schedules = self.extract_student_schedules_solution(solver)
+            return True, sessions, student_schedules
+        else:
+            print(f"Aucune solution trouvée. Statut: {status}")
+            return False, [], {}
+
+    def extract_student_schedules_solution(self, solver: cp_model.CpSolver) -> Tuple[List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
+        """Extrait la solution pour horaires étudiants uniquement (sans enseignants/salles)"""
+        print("Extraction de la solution des horaires étudiants...")
+
+        sessions = []
+        session_id = 0
+        session_map = {}
+
+        # Créer les sessions de cours (sans enseignant ni salle)
+        for course_type in self.course_requirements.keys():
+            for timeslot in self.timeslots:
+                if solver.Value(self.session_active[course_type][timeslot]):
+                    session = CourseSession(
+                        id=session_id,
+                        course_type=course_type,
+                        timeslot=timeslot,
+                        assigned_teacher=None,  # Pas encore assigné
+                        assigned_room=None,      # Pas encore assigné
+                        students=[]
+                    )
+                    sessions.append(session)
+                    session_map[(course_type, timeslot)] = session
+                    session_id += 1
+
+        # Créer les horaires individuels des étudiants
+        student_schedules = {}
+        for student in self.students:
+            schedule_entries = []
+            for course_type, num_courses in self.course_requirements.items():
+                for course_num in range(num_courses):
+                    for timeslot in self.timeslots:
+                        if solver.Value(self.student_course_timeslot[student.id][course_type][course_num][timeslot]):
+                            session = session_map.get((course_type, timeslot))
+                            if session:
+                                session.students.append(student)
+                            entry = StudentScheduleEntry(
+                                course_type=course_type,
+                                timeslot=timeslot,
+                                session=session
+                            )
+                            schedule_entries.append(entry)
+                            break
+            student_schedules[student.id] = sorted(schedule_entries,
+                                                   key=lambda x: (x.timeslot.day, x.timeslot.period))
+
+        sessions = sorted(sessions, key=lambda x: (x.timeslot.day, x.timeslot.period))
+        print(f"Solution extraite: {len(sessions)} sessions créées pour {len(self.students)} étudiants")
+        return sessions, student_schedules
+
+    @staticmethod
+    def assign_teachers_and_rooms(sessions: List[CourseSession], teachers: List[Teacher],
+                                   classrooms: List[Classroom]) -> Tuple[bool, List[CourseSession]]:
+        """
+        ÉTAPE 3: Assigne les enseignants et salles aux sessions existantes
+
+        Args:
+            sessions: Sessions avec étudiants et timeslots (sans enseignants/salles)
+            teachers: Liste des enseignants disponibles
+            classrooms: Liste des salles disponibles
+
+        Returns:
+            (success, updated_sessions)
+        """
+        print("Assignation des enseignants et salles aux sessions...")
+
+        model = cp_model.CpModel()
+
+        # Variables: pour chaque session, quel enseignant et quelle salle
+        session_teacher = {}
+        session_room = {}
+
+        for session in sessions:
+            session_teacher[session.id] = {}
+            for teacher in teachers:
+                if session.course_type in teacher.can_teach:
+                    var_name = f'session_{session.id}_teacher_{teacher.id}'
+                    session_teacher[session.id][teacher.id] = model.NewBoolVar(var_name)
+
+            session_room[session.id] = {}
+            for room in classrooms:
+                if session.course_type in room.allowed_subjects:
+                    var_name = f'session_{session.id}_room_{room.id}'
+                    session_room[session.id][room.id] = model.NewBoolVar(var_name)
+
+        # Contrainte 1: Chaque session doit avoir exactement un enseignant qualifié
+        for session in sessions:
+            if session_teacher[session.id]:
+                model.AddExactlyOne(list(session_teacher[session.id].values()))
+
+        # Contrainte 2: Chaque session doit avoir exactement une salle autorisée
+        for session in sessions:
+            if session_room[session.id]:
+                model.AddExactlyOne(list(session_room[session.id].values()))
+
+        # Contrainte 3: Un enseignant ne peut enseigner qu'une session à la fois
+        for teacher in teachers:
+            # Grouper les sessions par timeslot
+            timeslot_sessions = defaultdict(list)
+            for session in sessions:
+                timeslot_sessions[session.timeslot].append(session)
+
+            for timeslot, timeslot_sess in timeslot_sessions.items():
+                sessions_with_teacher = []
+                for session in timeslot_sess:
+                    if teacher.id in session_teacher[session.id]:
+                        sessions_with_teacher.append(session_teacher[session.id][teacher.id])
+                if sessions_with_teacher:
+                    model.Add(sum(sessions_with_teacher) <= 1)
+
+        # Contrainte 4: Une salle ne peut accueillir qu'une session à la fois
+        for room in classrooms:
+            timeslot_sessions = defaultdict(list)
+            for session in sessions:
+                timeslot_sessions[session.timeslot].append(session)
+
+            for timeslot, timeslot_sess in timeslot_sessions.items():
+                sessions_in_room = []
+                for session in timeslot_sess:
+                    if room.id in session_room[session.id]:
+                        sessions_in_room.append(session_room[session.id][room.id])
+                if sessions_in_room:
+                    model.Add(sum(sessions_in_room) <= 1)
+
+        # Objectif: Maximiser l'utilisation des salles préférées
+        print("Ajout de l'objectif: maximiser salles préférées...")
+        preferred_room_usage = []
+        for session in sessions:
+            for teacher in teachers:
+                if teacher.id in session_teacher[session.id] and teacher.preferred_classroom:
+                    if teacher.preferred_classroom.id in session_room[session.id]:
+                        # Variable pour: ce teacher dans cette session ET sa salle préférée
+                        both_var = model.NewBoolVar(f'pref_sess{session.id}_t{teacher.id}')
+                        model.AddMultiplicationEquality(
+                            both_var,
+                            [
+                                session_teacher[session.id][teacher.id],
+                                session_room[session.id][teacher.preferred_classroom.id]
+                            ]
+                        )
+                        preferred_room_usage.append(both_var)
+
+        if preferred_room_usage:
+            model.Maximize(sum(preferred_room_usage))
+
+        # Résolution
+        print("Lancement du solveur pour enseignants et salles...")
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = 600.0  # 10 minutes
+        solver.parameters.num_search_workers = 8
+
+        status = solver.Solve(model)
+
+        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+            print(f"Assignation réussie ! Statut: {'OPTIMAL' if status == cp_model.OPTIMAL else 'FEASIBLE'}")
+
+            # Mettre à jour les sessions avec enseignants et salles
+            for session in sessions:
+                # Trouver l'enseignant assigné
+                for teacher in teachers:
+                    if teacher.id in session_teacher[session.id]:
+                        if solver.Value(session_teacher[session.id][teacher.id]):
+                            session.assigned_teacher = teacher
+                            break
+
+                # Trouver la salle assignée
+                for room in classrooms:
+                    if room.id in session_room[session.id]:
+                        if solver.Value(session_room[session.id][room.id]):
+                            session.assigned_room = room
+                            break
+
+            print(f"Assignation terminée: {len(sessions)} sessions avec enseignants et salles")
+            return True, sessions
+        else:
+            print(f"Échec de l'assignation. Statut: {status}")
+            return False, sessions
 
     def solve(self) -> Tuple[bool, List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
         """
-        Résout le problème d'optimisation
+        Résout le problème d'optimisation (méthode complète originale - conservée pour compatibilité)
 
         Returns:
             (success, sessions, student_schedules)

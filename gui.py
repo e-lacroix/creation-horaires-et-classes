@@ -10,7 +10,7 @@ import pandas as pd
 from typing import List, Dict
 from models import (CourseSession, Teacher, Classroom, Student, CourseType,
                     TimeSlot, StudentScheduleEntry)
-from scheduler import ScheduleOptimizer
+from scheduler import ScheduleOptimizer, GroupingOption, GroupingStrategy, ProgramVariant
 from data_generator import generate_sample_data
 from data_manager import DataManager
 import subprocess
@@ -39,6 +39,14 @@ class SchedulerApp:
         self.students = []
         self.sessions = []
         self.student_schedules = {}
+        self.min_students_per_session = 20
+
+        # Nouvelles données pour le flux en 3 étapes
+        self.grouping_options = []  # Les 9 options générées
+        self.selected_option = None  # L'option sélectionnée par l'utilisateur
+        self.step1_completed = False  # Étape 1 : Options générées et sélectionnées
+        self.step2_completed = False  # Étape 2 : Horaires étudiants générés
+        self.step3_completed = False  # Étape 3 : Enseignants/salles assignés
 
         self.create_widgets()
 
@@ -68,32 +76,68 @@ class SchedulerApp:
         main_container = ttk.Frame(self.root)
         main_container.pack(fill=BOTH, expand=YES, padx=20, pady=20)
 
-        # Barre d'outils avec les boutons
+        # Barre d'outils avec les 3 boutons séquentiels
         toolbar_frame = ttk.Frame(main_container)
         toolbar_frame.pack(fill=X, pady=(0, 15))
 
-        self.generate_btn = ttk.Button(
+        # Bouton 1 : Générer les options de regroupement
+        self.step1_btn = ttk.Button(
             toolbar_frame,
-            text="🚀 Générer l'horaire",
-            command=self.run_optimization,
-            bootstyle="success",
-            width=20
+            text="1️⃣ Générer les options de regroupement",
+            command=self.step1_generate_options,
+            bootstyle="info",
+            width=35
         )
-        self.generate_btn.pack(side=LEFT, padx=(0, 10))
+        self.step1_btn.pack(side=LEFT, padx=(0, 10))
+
+        # Bouton 2 : Générer les horaires des étudiants
+        self.step2_btn = ttk.Button(
+            toolbar_frame,
+            text="2️⃣ Générer les horaires étudiants",
+            command=self.step2_generate_student_schedules,
+            bootstyle="warning",
+            state="disabled",
+            width=35
+        )
+        self.step2_btn.pack(side=LEFT, padx=(0, 10))
+
+        # Bouton 3 : Assigner les enseignants et salles
+        self.step3_btn = ttk.Button(
+            toolbar_frame,
+            text="3️⃣ Assigner enseignants et salles",
+            command=self.step3_assign_teachers_rooms,
+            bootstyle="success",
+            state="disabled",
+            width=35
+        )
+        self.step3_btn.pack(side=LEFT, padx=(0, 10))
+
+        # Deuxième ligne de boutons : Export et Réinitialiser
+        toolbar_frame2 = ttk.Frame(main_container)
+        toolbar_frame2.pack(fill=X, pady=(0, 15))
 
         self.export_btn = ttk.Button(
-            toolbar_frame,
+            toolbar_frame2,
             text="📥 Exporter vers Excel",
             command=self.export_to_excel,
             bootstyle="primary",
             state="disabled",
-            width=20
+            width=25
         )
         self.export_btn.pack(side=LEFT, padx=(0, 10))
 
+        self.reset_btn = ttk.Button(
+            toolbar_frame2,
+            text="🔄 Réinitialiser",
+            command=self.reset_workflow,
+            bootstyle="secondary",
+            width=20
+        )
+        self.reset_btn.pack(side=LEFT, padx=(0, 10))
+
         # Barre de progression
         self.progress = ttk.Progressbar(
-            toolbar_frame,
+            toolbar_frame2,
             mode='indeterminate',
             bootstyle="success-striped",
             length=200
@@ -106,6 +150,11 @@ class SchedulerApp:
 
         self.notebook = ttk.Notebook(right_panel, bootstyle="primary")
         self.notebook.pack(fill=BOTH, expand=YES)
+
+        # Onglet Options de regroupement (NOUVEAU - Étape 1)
+        options_frame = ttk.Frame(self.notebook)
+        self.notebook.add(options_frame, text="⚙️ Options de regroupement")
+        self.create_options_tab(options_frame)
 
         # Onglet Sessions de cours
         sessions_frame = ttk.Frame(self.notebook)
@@ -144,6 +193,77 @@ class SchedulerApp:
         )
         self.status_label.pack(pady=10, padx=20)
 
+
+    def create_options_tab(self, parent):
+        """Crée l'onglet des options de regroupement"""
+        # Frame principal avec scrollbar
+        main_frame = ttk.Frame(parent)
+        main_frame.pack(fill=BOTH, expand=YES, padx=10, pady=10)
+
+        # Info en haut
+        info_label = ttk.Label(
+            main_frame,
+            text="Sélectionnez une option de regroupement parmi les 9 configurations disponibles",
+            font=("Segoe UI", 11, "bold"),
+            bootstyle="info"
+        )
+        info_label.pack(anchor=W, pady=(0, 10))
+
+        # Treeview pour afficher les options
+        tree_frame = ttk.Frame(main_frame)
+        tree_frame.pack(fill=BOTH, expand=YES)
+
+        columns = ("ID", "Nom", "Taille groupe", "Stratégie", "Variante programme", "Sessions estimées", "Taille moy.")
+        self.options_tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show="headings",
+            bootstyle="info",
+            height=12
+        )
+
+        # Scrollbars
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.options_tree.yview)
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.options_tree.xview)
+        self.options_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        # Configuration des colonnes
+        self.options_tree.heading("ID", text="#")
+        self.options_tree.heading("Nom", text="Nom")
+        self.options_tree.heading("Taille groupe", text="Taille groupe")
+        self.options_tree.heading("Stratégie", text="Stratégie d'optimisation")
+        self.options_tree.heading("Variante programme", text="Variante programme")
+        self.options_tree.heading("Sessions estimées", text="Sessions estimées")
+        self.options_tree.heading("Taille moy.", text="Taille moy. groupe")
+
+        self.options_tree.column("ID", width=40, anchor=CENTER)
+        self.options_tree.column("Nom", width=150)
+        self.options_tree.column("Taille groupe", width=120)
+        self.options_tree.column("Stratégie", width=200)
+        self.options_tree.column("Variante programme", width=150)
+        self.options_tree.column("Sessions estimées", width=130, anchor=CENTER)
+        self.options_tree.column("Taille moy.", width=130, anchor=CENTER)
+
+        # Pack
+        self.options_tree.pack(side=LEFT, fill=BOTH, expand=YES)
+        vsb.pack(side=RIGHT, fill=Y)
+        hsb.pack(side=BOTTOM, fill=X)
+
+        # Bind la sélection
+        self.options_tree.bind("<<TreeviewSelect>>", self.on_option_selected)
+
+        # Frame pour la description de l'option sélectionnée
+        desc_frame = ttk.LabelFrame(main_frame, text="Description de l'option", bootstyle="info", padding=10)
+        desc_frame.pack(fill=X, pady=(10, 0))
+
+        self.option_desc_label = ttk.Label(
+            desc_frame,
+            text="Sélectionnez une option pour voir sa description détaillée",
+            font=("Segoe UI", 10),
+            wraplength=1300,
+            justify=LEFT
+        )
+        self.option_desc_label.pack(anchor=W)
 
     def create_sessions_tab(self, parent):
         """Crée l'onglet des sessions de cours"""
@@ -368,6 +488,303 @@ class SchedulerApp:
 
         finally:
             self.generate_btn.config(state="normal")
+
+    # ========================
+    # NOUVELLES MÉTHODES POUR LE FLUX EN 3 ÉTAPES
+    # ========================
+
+    def step1_generate_options(self):
+        """ÉTAPE 1 : Génère les 9 options de regroupement"""
+        try:
+            self.status_var.set("Chargement des données depuis les fichiers CSV...")
+            self.step1_btn.config(state="disabled")
+            self.progress.start()
+            self.root.update()
+
+            # Charger les données
+            self.course_requirements, self.teachers, self.classrooms, self.students, self.min_students_per_session = \
+                generate_sample_data(num_students=200, num_teachers=50, num_classrooms=30, use_csv_data=True)
+
+            num_students = len(self.students)
+            self.status_var.set(f"Génération de 9 options pour {num_students} étudiants...")
+            self.root.update()
+
+            # Générer les 9 options
+            self.grouping_options = ScheduleOptimizer.generate_grouping_options(
+                self.students,
+                self.course_requirements
+            )
+
+            # Afficher les options dans le treeview
+            self.display_options()
+
+            self.progress.stop()
+            self.status_var.set("9 options générées. Sélectionnez-en une et passez à l'étape 2.")
+
+            Messagebox.show_info(
+                f"9 options de regroupement ont été générées avec succès!\n\n"
+                f"Données chargées:\n"
+                f"• {num_students} étudiants\n"
+                f"• {len(self.teachers)} enseignants\n"
+                f"• {len(self.classrooms)} salles\n\n"
+                "Consultez l'onglet '⚙️ Options de regroupement' et sélectionnez une option.",
+                "Options générées"
+            )
+
+            # Activer la sélection (pas encore le bouton 2)
+            self.notebook.select(0)  # Aller sur l'onglet des options
+
+        except Exception as e:
+            import traceback
+            self.progress.stop()
+            self.status_var.set("❌ Erreur lors de la génération des options")
+            Messagebox.show_error(
+                f"Une erreur s'est produite:\n{str(e)}\n\n{traceback.format_exc()}",
+                "Erreur"
+            )
+
+        finally:
+            self.step1_btn.config(state="normal")
+
+    def display_options(self):
+        """Affiche les 9 options dans le treeview"""
+        # Vider le treeview
+        for item in self.options_tree.get_children():
+            self.options_tree.delete(item)
+
+        # Ajouter les options
+        for i, option in enumerate(self.grouping_options):
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+
+            self.options_tree.insert(
+                "",
+                "end",
+                values=(
+                    option.id + 1,
+                    option.name,
+                    f"{option.group_size.min_students}-{option.group_size.max_students}",
+                    option.strategy.value,
+                    option.program_variant.value,
+                    option.estimated_sessions,
+                    f"{option.avg_group_size:.1f}"
+                ),
+                tags=(tag,)
+            )
+
+        # Configuration des tags
+        self.options_tree.tag_configure('evenrow', background='#f0f0f0')
+        self.options_tree.tag_configure('oddrow', background='white')
+
+    def on_option_selected(self, event=None):
+        """Appelé quand une option est sélectionnée"""
+        selection = self.options_tree.selection()
+        if not selection:
+            return
+
+        # Récupérer l'index de l'option sélectionnée
+        item = self.options_tree.item(selection[0])
+        option_id = int(item['values'][0]) - 1
+
+        if 0 <= option_id < len(self.grouping_options):
+            self.selected_option = self.grouping_options[option_id]
+
+            # Afficher la description
+            desc = f"Option {option_id + 1} sélectionnée:\n\n"
+            desc += f"Taille de groupe: {self.selected_option.group_size.name} "
+            desc += f"({self.selected_option.group_size.min_students}-{self.selected_option.group_size.max_students} étudiants)\n"
+            desc += f"Stratégie: {self.selected_option.strategy.value}\n"
+            desc += f"Variante: {self.selected_option.program_variant.value}\n\n"
+            desc += f"Estimation: ~{self.selected_option.estimated_sessions} sessions avec une taille moyenne de {self.selected_option.avg_group_size:.1f} étudiants\n\n"
+            desc += f"{self.selected_option.group_size.description}"
+
+            self.option_desc_label.config(text=desc)
+
+            # Activer le bouton de l'étape 2
+            self.step2_btn.config(state="normal")
+            self.step1_completed = True
+            self.status_var.set(f"Option {option_id + 1} sélectionnée. Vous pouvez passer à l'étape 2.")
+
+    def step2_generate_student_schedules(self):
+        """ÉTAPE 2 : Génère les horaires des étudiants avec l'option sélectionnée"""
+        if not self.step1_completed or not self.selected_option:
+            Messagebox.show_warning(
+                "Veuillez d'abord compléter l'étape 1 et sélectionner une option.",
+                "Étape 1 non complétée"
+            )
+            return
+
+        try:
+            self.status_var.set("Génération des horaires étudiants en cours...")
+            self.step2_btn.config(state="disabled")
+            self.progress.start()
+            self.root.update()
+
+            # Créer l'optimiseur avec l'option sélectionnée
+            optimizer = ScheduleOptimizer(
+                self.teachers,
+                self.classrooms,
+                self.students,
+                self.course_requirements,
+                self.selected_option
+            )
+
+            # Résoudre UNIQUEMENT les horaires étudiants
+            success, sessions, student_schedules = optimizer.solve_student_schedules_only()
+
+            self.progress.stop()
+
+            if success:
+                self.sessions = sessions
+                self.student_schedules = student_schedules
+                self.step2_completed = True
+
+                # Afficher les résultats (sans enseignants/salles)
+                self.display_sessions()
+                self.populate_student_selector()
+                self.display_statistics()
+
+                # Activer le bouton de l'étape 3
+                self.step3_btn.config(state="normal")
+
+                self.status_var.set(f"✓ Horaires étudiants générés! {len(sessions)} sessions créées.")
+                Messagebox.show_info(
+                    f"Les horaires des étudiants ont été générés avec succès!\n\n"
+                    f"• {len(sessions)} sessions créées\n"
+                    f"• {len(self.students)} étudiants avec horaires personnalisés\n"
+                    f"• Enseignants et salles pas encore assignés\n\n"
+                    "Passez à l'étape 3 pour assigner les enseignants et salles.",
+                    "Étape 2 complétée"
+                )
+            else:
+                self.status_var.set("❌ Échec de la génération des horaires")
+                Messagebox.show_error(
+                    "Impossible de trouver une solution pour les horaires étudiants.\n\n"
+                    "Suggestions:\n"
+                    "• Essayez une autre option de regroupement\n"
+                    "• Vérifiez les contraintes des données",
+                    "Erreur d'optimisation"
+                )
+
+        except Exception as e:
+            import traceback
+            self.progress.stop()
+            self.status_var.set("❌ Erreur lors de la génération des horaires")
+            Messagebox.show_error(
+                f"Une erreur s'est produite:\n{str(e)}\n\n{traceback.format_exc()}",
+                "Erreur"
+            )
+
+        finally:
+            self.step2_btn.config(state="normal")
+
+    def step3_assign_teachers_rooms(self):
+        """ÉTAPE 3 : Assigne les enseignants et salles aux sessions existantes"""
+        if not self.step2_completed or not self.sessions:
+            Messagebox.show_warning(
+                "Veuillez d'abord compléter l'étape 2 (génération des horaires étudiants).",
+                "Étape 2 non complétée"
+            )
+            return
+
+        try:
+            self.status_var.set("Assignation des enseignants et salles en cours...")
+            self.step3_btn.config(state="disabled")
+            self.progress.start()
+            self.root.update()
+
+            # Assigner les enseignants et salles
+            success, updated_sessions = ScheduleOptimizer.assign_teachers_and_rooms(
+                self.sessions,
+                self.teachers,
+                self.classrooms
+            )
+
+            self.progress.stop()
+
+            if success:
+                self.sessions = updated_sessions
+                self.step3_completed = True
+
+                # Mettre à jour les affichages
+                self.display_sessions()
+                self.populate_teacher_selector()
+                self.display_statistics()
+
+                # Activer l'export
+                self.export_btn.config(state="normal")
+
+                self.status_var.set("✓ Horaire complet généré avec succès!")
+                Messagebox.show_info(
+                    f"L'horaire complet a été généré avec succès!\n\n"
+                    f"• {len(self.sessions)} sessions avec enseignants et salles\n"
+                    f"• Horaires personnalisés pour {len(self.students)} étudiants\n"
+                    f"• Vous pouvez maintenant exporter vers Excel",
+                    "Optimisation complète"
+                )
+            else:
+                self.status_var.set("❌ Échec de l'assignation")
+                Messagebox.show_error(
+                    "Impossible d'assigner tous les enseignants et salles.\n\n"
+                    "Suggestions:\n"
+                    "• Vérifiez qu'il y a assez d'enseignants qualifiés\n"
+                    "• Vérifiez qu'il y a assez de salles disponibles",
+                    "Erreur d'assignation"
+                )
+
+        except Exception as e:
+            import traceback
+            self.progress.stop()
+            self.status_var.set("❌ Erreur lors de l'assignation")
+            Messagebox.show_error(
+                f"Une erreur s'est produite:\n{str(e)}\n\n{traceback.format_exc()}",
+                "Erreur"
+            )
+
+        finally:
+            self.step3_btn.config(state="normal")
+
+    def reset_workflow(self):
+        """Réinitialise le flux de travail pour recommencer"""
+        result = Messagebox.show_question(
+            "Êtes-vous sûr de vouloir réinitialiser?\n\n"
+            "Cela effacera toutes les données générées et vous devrez recommencer depuis l'étape 1.",
+            "Confirmer la réinitialisation"
+        )
+
+        if result == "Yes":
+            # Réinitialiser les données
+            self.grouping_options = []
+            self.selected_option = None
+            self.sessions = []
+            self.student_schedules = {}
+            self.step1_completed = False
+            self.step2_completed = False
+            self.step3_completed = False
+
+            # Réinitialiser les boutons
+            self.step1_btn.config(state="normal")
+            self.step2_btn.config(state="disabled")
+            self.step3_btn.config(state="disabled")
+            self.export_btn.config(state="disabled")
+
+            # Vider les affichages
+            for item in self.options_tree.get_children():
+                self.options_tree.delete(item)
+            for item in self.sessions_tree.get_children():
+                self.sessions_tree.delete(item)
+            for item in self.individual_tree.get_children():
+                self.individual_tree.delete(item)
+            for item in self.teacher_tree.get_children():
+                self.teacher_tree.delete(item)
+
+            self.option_desc_label.config(text="Sélectionnez une option pour voir sa description détaillée")
+            self.stats_text.delete("1.0", "end")
+
+            self.status_var.set("Flux de travail réinitialisé. Commencez par l'étape 1.")
+
+    # ========================
+    # FIN DES NOUVELLES MÉTHODES
+    # ========================
 
     def display_sessions(self):
         """Affiche les sessions de cours dans le treeview"""
