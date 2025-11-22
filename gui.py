@@ -25,6 +25,16 @@ class SchedulerApp:
         self.root.title("Création d'horaires - Secondaire 4 Québec")
         self.root.geometry("1400x900")
 
+        # Couleurs personnalisées - Thème Odyssée (Or, Noir, Blanc)
+        self.GOLD = "#FFCC00"
+        self.BLACK = "#000000"
+        self.WHITE = "#FFFFFF"
+        self.GOLD_DARK = "#CC9900"  # Or plus foncé pour le texte sur blanc
+        self.GRAY_LIGHT = "#F5F5F5"  # Gris très clair pour alternance
+
+        # Configurer les couleurs de fond
+        self.root.configure(bg=self.WHITE)
+
         # Variables de configuration
         self.num_students_var = IntVar(value=56)
         self.num_teachers_var = IntVar(value=13)
@@ -49,28 +59,30 @@ class SchedulerApp:
         self.step3_completed = False  # Étape 3 : Enseignants/salles assignés
 
         self.create_widgets()
+        self.apply_custom_styles()
 
     def create_widgets(self):
         """Crée les widgets de l'interface Material Design"""
-        # Header
-        header_frame = ttk.Frame(self.root, bootstyle="primary")
+        # Header avec couleurs personnalisées
+        header_frame = ttk.Frame(self.root)
         header_frame.pack(fill=X, padx=0, pady=0)
+        header_frame.configure(style="Gold.TFrame")
 
         title_label = ttk.Label(
             header_frame,
             text="📚 Optimisation d'Horaires - Secondaire 4",
-            font=("Segoe UI", 20, "bold"),
-            bootstyle="inverse-primary"
+            font=("Segoe UI", 20, "bold")
         )
         title_label.pack(pady=20, padx=20)
+        title_label.configure(style="GoldHeader.TLabel")
 
         subtitle_label = ttk.Label(
             header_frame,
             text="Génération automatique d'horaires optimisés pour le Québec",
-            font=("Segoe UI", 11),
-            bootstyle="inverse-primary"
+            font=("Segoe UI", 11)
         )
         subtitle_label.pack(pady=(0, 20), padx=20)
+        subtitle_label.configure(style="GoldSubHeader.TLabel")
 
         # Conteneur principal
         main_container = ttk.Frame(self.root)
@@ -85,8 +97,8 @@ class SchedulerApp:
             toolbar_frame,
             text="1️⃣ Générer les options de regroupement",
             command=self.step1_generate_options,
-            bootstyle="info",
-            width=35
+            width=35,
+            style="Gold.TButton"
         )
         self.step1_btn.pack(side=LEFT, padx=(0, 10))
 
@@ -95,9 +107,9 @@ class SchedulerApp:
             toolbar_frame,
             text="2️⃣ Générer les horaires étudiants",
             command=self.step2_generate_student_schedules,
-            bootstyle="warning",
             state="disabled",
-            width=35
+            width=35,
+            style="Gold.TButton"
         )
         self.step2_btn.pack(side=LEFT, padx=(0, 10))
 
@@ -106,9 +118,9 @@ class SchedulerApp:
             toolbar_frame,
             text="3️⃣ Assigner enseignants et salles",
             command=self.step3_assign_teachers_rooms,
-            bootstyle="success",
             state="disabled",
-            width=35
+            width=35,
+            style="Gold.TButton"
         )
         self.step3_btn.pack(side=LEFT, padx=(0, 10))
 
@@ -120,9 +132,9 @@ class SchedulerApp:
             toolbar_frame2,
             text="📥 Exporter vers Excel",
             command=self.export_to_excel,
-            bootstyle="primary",
             state="disabled",
-            width=25
+            width=25,
+            style="Black.TButton"
         )
         self.export_btn.pack(side=LEFT, padx=(0, 10))
 
@@ -130,8 +142,8 @@ class SchedulerApp:
             toolbar_frame2,
             text="🔄 Réinitialiser",
             command=self.reset_workflow,
-            bootstyle="secondary",
-            width=20
+            width=20,
+            style="BlackOutline.TButton"
         )
         self.reset_btn.pack(side=LEFT, padx=(0, 10))
 
@@ -139,8 +151,8 @@ class SchedulerApp:
         self.progress = ttk.Progressbar(
             toolbar_frame2,
             mode='indeterminate',
-            bootstyle="success-striped",
-            length=200
+            length=200,
+            style="Gold.Horizontal.TProgressbar"
         )
         self.progress.pack(side=LEFT, padx=(0, 10))
 
@@ -148,7 +160,7 @@ class SchedulerApp:
         right_panel = ttk.Frame(main_container)
         right_panel.pack(fill=BOTH, expand=YES)
 
-        self.notebook = ttk.Notebook(right_panel, bootstyle="primary")
+        self.notebook = ttk.Notebook(right_panel, style="Gold.TNotebook")
         self.notebook.pack(fill=BOTH, expand=YES)
 
         # Onglet Options de regroupement (NOUVEAU - Étape 1)
@@ -182,16 +194,146 @@ class SchedulerApp:
         self.create_data_management_tab(data_frame)
 
         # Barre de statut
-        status_frame = ttk.Frame(self.root, bootstyle="secondary")
+        status_frame = ttk.Frame(self.root, style="Black.TFrame")
         status_frame.pack(fill=X, side=BOTTOM)
 
         self.status_label = ttk.Label(
             status_frame,
             textvariable=self.status_var,
             font=("Segoe UI", 10),
-            bootstyle="inverse-secondary"
+            style="StatusBar.TLabel"
         )
         self.status_label.pack(pady=10, padx=20)
+
+    def apply_custom_styles(self):
+        """Applique les styles personnalisés avec les couleurs or, noir et blanc"""
+        style = ttk.Style()
+
+        # Style pour le header (fond or, texte noir)
+        style.configure("Gold.TFrame", background=self.GOLD)
+        style.configure("GoldHeader.TLabel",
+                       background=self.GOLD,
+                       foreground=self.BLACK,
+                       font=("Segoe UI", 20, "bold"))
+        style.configure("GoldSubHeader.TLabel",
+                       background=self.GOLD,
+                       foreground=self.BLACK,
+                       font=("Segoe UI", 11))
+
+        # Style pour la barre de statut (fond noir, texte or)
+        style.configure("Black.TFrame", background=self.BLACK)
+        style.configure("StatusBar.TLabel",
+                       background=self.BLACK,
+                       foreground=self.GOLD,
+                       font=("Segoe UI", 10))
+
+        # Styles pour les boutons principaux (fond or, texte noir)
+        style.configure("Gold.TButton",
+                       background=self.GOLD,
+                       foreground=self.BLACK,
+                       bordercolor=self.BLACK,
+                       focuscolor=self.GOLD_DARK,
+                       lightcolor=self.GOLD,
+                       darkcolor=self.GOLD_DARK,
+                       borderwidth=2,
+                       relief="raised",
+                       font=("Segoe UI", 10, "bold"))
+
+        style.map("Gold.TButton",
+                 background=[("active", self.GOLD_DARK), ("disabled", "#E0E0E0")],
+                 foreground=[("active", self.BLACK), ("disabled", "#999999")])
+
+        # Style pour boutons noirs (fond noir, texte or)
+        style.configure("Black.TButton",
+                       background=self.BLACK,
+                       foreground=self.GOLD,
+                       bordercolor=self.GOLD,
+                       focuscolor=self.BLACK,
+                       lightcolor=self.BLACK,
+                       darkcolor=self.BLACK,
+                       borderwidth=2,
+                       relief="raised",
+                       font=("Segoe UI", 10, "bold"))
+
+        style.map("Black.TButton",
+                 background=[("active", "#333333"), ("disabled", "#E0E0E0")],
+                 foreground=[("active", self.GOLD), ("disabled", "#999999")])
+
+        # Style pour boutons outline noir
+        style.configure("BlackOutline.TButton",
+                       background=self.WHITE,
+                       foreground=self.BLACK,
+                       bordercolor=self.BLACK,
+                       focuscolor=self.GRAY_LIGHT,
+                       borderwidth=2,
+                       relief="solid",
+                       font=("Segoe UI", 10))
+
+        style.map("BlackOutline.TButton",
+                 background=[("active", self.GRAY_LIGHT), ("disabled", "#F0F0F0")],
+                 foreground=[("active", self.BLACK), ("disabled", "#999999")])
+
+        # Style pour la barre de progression (or)
+        style.configure("Gold.Horizontal.TProgressbar",
+                       background=self.GOLD,
+                       troughcolor=self.WHITE,
+                       bordercolor=self.BLACK,
+                       lightcolor=self.GOLD,
+                       darkcolor=self.GOLD_DARK)
+
+        # Style pour le notebook (onglets or et noir)
+        style.configure("Gold.TNotebook",
+                       background=self.WHITE,
+                       bordercolor=self.BLACK,
+                       lightcolor=self.GOLD)
+
+        style.configure("Gold.TNotebook.Tab",
+                       background=self.WHITE,
+                       foreground=self.BLACK,
+                       bordercolor=self.BLACK,
+                       lightcolor=self.GOLD,
+                       padding=[10, 5],
+                       font=("Segoe UI", 10))
+
+        style.map("Gold.TNotebook.Tab",
+                 background=[("selected", self.GOLD), ("active", self.GRAY_LIGHT)],
+                 foreground=[("selected", self.BLACK), ("active", self.BLACK)],
+                 expand=[("selected", [1, 1, 1, 0])])
+
+        # Style pour les Treeview (fond blanc, sélection or)
+        style.configure("Treeview",
+                       background=self.WHITE,
+                       foreground=self.BLACK,
+                       fieldbackground=self.WHITE,
+                       bordercolor=self.BLACK,
+                       borderwidth=1)
+
+        style.configure("Treeview.Heading",
+                       background=self.GOLD,
+                       foreground=self.BLACK,
+                       bordercolor=self.BLACK,
+                       relief="raised",
+                       font=("Segoe UI", 10, "bold"))
+
+        style.map("Treeview.Heading",
+                 background=[("active", self.GOLD_DARK)],
+                 foreground=[("active", self.BLACK)])
+
+        style.map("Treeview",
+                 background=[("selected", self.GOLD)],
+                 foreground=[("selected", self.BLACK)])
+
+        # Style pour les LabelFrame
+        style.configure("TLabelframe",
+                       background=self.WHITE,
+                       foreground=self.BLACK,
+                       bordercolor=self.GOLD_DARK,
+                       borderwidth=2)
+
+        style.configure("TLabelframe.Label",
+                       background=self.WHITE,
+                       foreground=self.GOLD_DARK,
+                       font=("Segoe UI", 11, "bold"))
 
 
     def create_options_tab(self, parent):
@@ -205,7 +347,7 @@ class SchedulerApp:
             main_frame,
             text="Sélectionnez une option de regroupement parmi les 9 configurations disponibles",
             font=("Segoe UI", 11, "bold"),
-            bootstyle="info"
+            foreground=self.GOLD_DARK
         )
         info_label.pack(anchor=W, pady=(0, 10))
 
@@ -218,7 +360,6 @@ class SchedulerApp:
             tree_frame,
             columns=columns,
             show="headings",
-            bootstyle="info",
             height=12
         )
 
@@ -253,7 +394,7 @@ class SchedulerApp:
         self.options_tree.bind("<<TreeviewSelect>>", self.on_option_selected)
 
         # Frame pour la description de l'option sélectionnée
-        desc_frame = ttk.LabelFrame(main_frame, text="Description de l'option", bootstyle="info", padding=10)
+        desc_frame = ttk.LabelFrame(main_frame, text="Description de l'option", padding=10)
         desc_frame.pack(fill=X, pady=(10, 0))
 
         self.option_desc_label = ttk.Label(
@@ -261,7 +402,8 @@ class SchedulerApp:
             text="Sélectionnez une option pour voir sa description détaillée",
             font=("Segoe UI", 10),
             wraplength=1300,
-            justify=LEFT
+            justify=LEFT,
+            foreground=self.BLACK
         )
         self.option_desc_label.pack(anchor=W)
 
@@ -277,7 +419,6 @@ class SchedulerApp:
             tree_frame,
             columns=columns,
             show="headings",
-            bootstyle="primary",
             height=20
         )
 
@@ -328,7 +469,6 @@ class SchedulerApp:
             tree_frame,
             columns=columns,
             show="headings",
-            bootstyle="info",
             height=20
         )
 
@@ -377,7 +517,6 @@ class SchedulerApp:
             tree_frame,
             columns=columns,
             show="headings",
-            bootstyle="success",
             height=20
         )
 
@@ -572,8 +711,8 @@ class SchedulerApp:
             )
 
         # Configuration des tags
-        self.options_tree.tag_configure('evenrow', background='#f0f0f0')
-        self.options_tree.tag_configure('oddrow', background='white')
+        self.options_tree.tag_configure('evenrow', background=self.GRAY_LIGHT)
+        self.options_tree.tag_configure('oddrow', background=self.WHITE)
 
     def on_option_selected(self, event=None):
         """Appelé quand une option est sélectionnée"""
@@ -815,8 +954,8 @@ class SchedulerApp:
             )
 
         # Configuration des tags pour l'alternance
-        self.sessions_tree.tag_configure('evenrow', background='#f0f0f0')
-        self.sessions_tree.tag_configure('oddrow', background='white')
+        self.sessions_tree.tag_configure('evenrow', background=self.GRAY_LIGHT)
+        self.sessions_tree.tag_configure('oddrow', background=self.WHITE)
 
     def populate_student_selector(self):
         """Remplit le sélecteur d'étudiants"""
@@ -866,8 +1005,8 @@ class SchedulerApp:
             )
 
         # Configuration des tags pour l'alternance
-        self.individual_tree.tag_configure('evenrow', background='#f0f0f0')
-        self.individual_tree.tag_configure('oddrow', background='white')
+        self.individual_tree.tag_configure('evenrow', background=self.GRAY_LIGHT)
+        self.individual_tree.tag_configure('oddrow', background=self.WHITE)
 
     def populate_teacher_selector(self):
         """Remplit le sélecteur d'enseignants"""
@@ -926,8 +1065,8 @@ class SchedulerApp:
             )
 
         # Configuration des tags pour l'alternance
-        self.teacher_tree.tag_configure('evenrow', background='#f0f0f0')
-        self.teacher_tree.tag_configure('oddrow', background='white')
+        self.teacher_tree.tag_configure('evenrow', background=self.GRAY_LIGHT)
+        self.teacher_tree.tag_configure('oddrow', background=self.WHITE)
 
     def display_statistics(self):
         """Affiche les statistiques"""
@@ -1143,7 +1282,7 @@ class SchedulerApp:
             main_frame,
             text="Gestion des Données",
             font=("Segoe UI", 16, "bold"),
-            bootstyle="primary"
+            foreground=self.GOLD_DARK
         )
         header_label.pack(anchor=W, pady=(0, 10))
 
@@ -1151,7 +1290,7 @@ class SchedulerApp:
             main_frame,
             text="Gérez les fichiers de données (élèves, enseignants, classes, programmes)",
             font=("Segoe UI", 10),
-            bootstyle="secondary"
+            foreground=self.BLACK
         )
         info_label.pack(anchor=W, pady=(0, 20))
 
@@ -1160,7 +1299,7 @@ class SchedulerApp:
         content_frame.pack(fill=BOTH, expand=YES)
 
         # Section Élèves
-        eleves_frame = ttk.LabelFrame(content_frame, text="📚 Élèves", bootstyle="info", padding=15)
+        eleves_frame = ttk.LabelFrame(content_frame, text="📚 Élèves", padding=15)
         eleves_frame.pack(fill=X, pady=(0, 10))
 
         ttk.Label(
@@ -1175,19 +1314,19 @@ class SchedulerApp:
         ttk.Button(
             eleves_btn_frame,
             text="Ouvrir le fichier CSV",
-            bootstyle="info-outline",
+            style="Gold.TButton",
             command=lambda: self.open_csv_file("data/eleves/eleves.csv")
         ).pack(side=LEFT, padx=(0, 5))
 
         ttk.Button(
             eleves_btn_frame,
             text="Ouvrir le dossier",
-            bootstyle="secondary-outline",
+            style="BlackOutline.TButton",
             command=lambda: self.open_folder("data/eleves")
         ).pack(side=LEFT)
 
         # Section Enseignants
-        enseignants_frame = ttk.LabelFrame(content_frame, text="👨‍🏫 Enseignants", bootstyle="info", padding=15)
+        enseignants_frame = ttk.LabelFrame(content_frame, text="👨‍🏫 Enseignants", padding=15)
         enseignants_frame.pack(fill=X, pady=(0, 10))
 
         ttk.Label(
@@ -1202,19 +1341,19 @@ class SchedulerApp:
         ttk.Button(
             enseignants_btn_frame,
             text="Ouvrir le fichier CSV",
-            bootstyle="info-outline",
+            style="Gold.TButton",
             command=lambda: self.open_csv_file("data/enseignants/enseignants.csv")
         ).pack(side=LEFT, padx=(0, 5))
 
         ttk.Button(
             enseignants_btn_frame,
             text="Ouvrir le dossier",
-            bootstyle="secondary-outline",
+            style="BlackOutline.TButton",
             command=lambda: self.open_folder("data/enseignants")
         ).pack(side=LEFT)
 
         # Section Classes
-        classes_frame = ttk.LabelFrame(content_frame, text="🏫 Classes (Salles)", bootstyle="info", padding=15)
+        classes_frame = ttk.LabelFrame(content_frame, text="🏫 Classes (Salles)", padding=15)
         classes_frame.pack(fill=X, pady=(0, 10))
 
         ttk.Label(
@@ -1229,19 +1368,19 @@ class SchedulerApp:
         ttk.Button(
             classes_btn_frame,
             text="Ouvrir le fichier CSV",
-            bootstyle="info-outline",
+            style="Gold.TButton",
             command=lambda: self.open_csv_file("data/classes/classes.csv")
         ).pack(side=LEFT, padx=(0, 5))
 
         ttk.Button(
             classes_btn_frame,
             text="Ouvrir le dossier",
-            bootstyle="secondary-outline",
+            style="BlackOutline.TButton",
             command=lambda: self.open_folder("data/classes")
         ).pack(side=LEFT)
 
         # Section Programmes
-        programmes_frame = ttk.LabelFrame(content_frame, text="📋 Programmes", bootstyle="success", padding=15)
+        programmes_frame = ttk.LabelFrame(content_frame, text="📋 Programmes", padding=15)
         programmes_frame.pack(fill=X, pady=(0, 10))
 
         ttk.Label(
@@ -1263,31 +1402,31 @@ class SchedulerApp:
             programmes_frame,
             text=prog_text,
             font=("Segoe UI", 9),
-            bootstyle="secondary"
+            foreground=self.BLACK
         ).pack(anchor=W, pady=(0, 10))
 
         ttk.Button(
             programmes_frame,
             text="Ouvrir le dossier des programmes",
-            bootstyle="success-outline",
+            style="Gold.TButton",
             command=lambda: self.open_folder("data/programmes")
         ).pack(anchor=W)
 
         # Section Actions
-        actions_frame = ttk.LabelFrame(content_frame, text="⚙️ Actions", bootstyle="warning", padding=15)
+        actions_frame = ttk.LabelFrame(content_frame, text="⚙️ Actions", padding=15)
         actions_frame.pack(fill=X, pady=(10, 0))
 
         ttk.Label(
             actions_frame,
             text="Recréer les données d'exemple (écrase les fichiers existants)",
             font=("Segoe UI", 9),
-            bootstyle="secondary"
+            foreground=self.BLACK
         ).pack(anchor=W, pady=(0, 10))
 
         ttk.Button(
             actions_frame,
             text="Regénérer les données d'exemple",
-            bootstyle="warning",
+            style="Black.TButton",
             command=self.regenerate_sample_data
         ).pack(anchor=W)
 
@@ -1299,7 +1438,7 @@ class SchedulerApp:
             note_frame,
             text="ℹ️ Note: Après modification des fichiers CSV, relancez la génération d'horaire pour appliquer les changements.",
             font=("Segoe UI", 9),
-            bootstyle="info",
+            foreground=self.GOLD_DARK,
             wraplength=700
         ).pack(anchor=W)
 
