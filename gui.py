@@ -397,7 +397,7 @@ class SchedulerApp:
         tree_frame.pack(fill=BOTH, expand=YES, padx=10, pady=10)
 
         # Treeview avec style
-        columns = ("Jour", "Période", "Cours", "Enseignant", "Salle", "Étudiants")
+        columns = ("Jour", "Période", "Cours", "Groupe", "Enseignant", "Salle", "Étudiants")
         self.sessions_tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -414,16 +414,18 @@ class SchedulerApp:
         self.sessions_tree.heading("Jour", text="📅 Jour")
         self.sessions_tree.heading("Période", text="⏰ Période")
         self.sessions_tree.heading("Cours", text="📚 Cours")
+        self.sessions_tree.heading("Groupe", text="👥 Groupe")
         self.sessions_tree.heading("Enseignant", text="👨‍🏫 Enseignant")
         self.sessions_tree.heading("Salle", text="🏫 Salle")
-        self.sessions_tree.heading("Étudiants", text="👥 Étudiants")
+        self.sessions_tree.heading("Étudiants", text="🎓 Étudiants")
 
         self.sessions_tree.column("Jour", width=80, anchor=CENTER)
         self.sessions_tree.column("Période", width=80, anchor=CENTER)
-        self.sessions_tree.column("Cours", width=250)
-        self.sessions_tree.column("Enseignant", width=200)
-        self.sessions_tree.column("Salle", width=150)
-        self.sessions_tree.column("Étudiants", width=120, anchor=CENTER)
+        self.sessions_tree.column("Cours", width=200)
+        self.sessions_tree.column("Groupe", width=180)
+        self.sessions_tree.column("Enseignant", width=180)
+        self.sessions_tree.column("Salle", width=120)
+        self.sessions_tree.column("Étudiants", width=100, anchor=CENTER)
 
         # Pack
         self.sessions_tree.pack(side=LEFT, fill=BOTH, expand=YES)
@@ -546,7 +548,7 @@ class SchedulerApp:
 
             # Générer les données (charge depuis CSV ou utilise les valeurs par défaut)
             # Utiliser des limites élevées pour charger toutes les données depuis les CSV
-            self.course_requirements, self.teachers, self.classrooms, self.students, self.min_students_per_session = \
+            self.programs_requirements, self.teachers, self.classrooms, self.students, self.min_students_per_session = \
                 generate_sample_data(num_students=200, num_teachers=50, num_classrooms=30, use_csv_data=True)
 
             num_students = len(self.students)
@@ -558,14 +560,26 @@ class SchedulerApp:
             self.status_var.set("Optimisation en cours... (peut prendre jusqu'à 10 minutes)")
             self.root.update()
 
-            # Optimisation
-            optimizer = ScheduleOptimizer(
-                self.teachers,
-                self.classrooms,
-                self.students,
-                self.course_requirements,
-                self.min_students_per_session
+            # NOTE: Cette fonction utilise l'ancien algorithme et ne devrait plus être utilisée
+            # Utiliser le nouveau workflow en 3 étapes à la place
+            Messagebox.show_warning(
+                "Cette fonctionnalité utilise l'ancien algorithme.\n\n"
+                "Veuillez utiliser le nouveau workflow en 3 étapes:\n"
+                "1. Charger les programmes et créer les groupes\n"
+                "2. Générer les horaires de groupe\n"
+                "3. Assigner les enseignants et salles",
+                "Fonction obsolète"
             )
+            return
+
+            # Optimisation (code obsolète désactivé)
+            # optimizer = ScheduleOptimizer(
+            #     self.teachers,
+            #     self.classrooms,
+            #     self.students,
+            #     self.programs_requirements,
+            #     self.min_students_per_session
+            # )
 
             success, sessions, student_schedules = optimizer.solve()
 
@@ -1050,6 +1064,7 @@ class SchedulerApp:
 
         # Ajouter les sessions avec alternance de couleurs
         for i, session in enumerate(self.sessions):
+            group_name = session.assigned_group.name if session.assigned_group else "N/A"
             teacher_name = session.assigned_teacher.name if session.assigned_teacher else "N/A"
             room_name = session.assigned_room.name if session.assigned_room else "N/A"
             num_students = len(session.students)
@@ -1063,9 +1078,10 @@ class SchedulerApp:
                     f"Jour {session.timeslot.day}",
                     f"Période {session.timeslot.period}",
                     f"{session.course_type.value}",
+                    group_name,
                     teacher_name,
                     room_name,
-                    f"{num_students} étudiants"
+                    f"{num_students}"
                 ),
                 tags=(tag,)
             )
@@ -1197,9 +1213,16 @@ class SchedulerApp:
         stats += "📊 INFORMATIONS GÉNÉRALES\n"
         stats += "─" * 60 + "\n"
         stats += f"   Nombre d'étudiants: {len(self.students)}\n"
+        stats += f"   Nombre de groupes: {len(self.groups)}\n"
         stats += f"   Nombre de sessions créées: {len(self.sessions)}\n"
-        total_courses = sum(self.course_requirements.values())
-        stats += f"   Cours par étudiant: {total_courses}\n"
+
+        # Afficher les cours par programme
+        if self.programs_requirements:
+            stats += f"   Programmes: {len(self.programs_requirements)}\n"
+            for prog_name, reqs in self.programs_requirements.items():
+                total = sum(reqs.values())
+                stats += f"      • {prog_name}: {total} cours\n"
+
         stats += f"   Nombre d'enseignants: {len(self.teachers)}\n"
         stats += f"   Nombre de salles: {len(self.classrooms)}\n\n"
 
@@ -1283,12 +1306,17 @@ class SchedulerApp:
         # Optimisation des ressources
         stats += "\n🎯 OPTIMISATION DES RESSOURCES\n"
         stats += "─" * 60 + "\n"
-        # Calculer le facteur de regroupement
-        total_potential_sessions = len(self.students) * total_courses
-        stats += f"   Sessions théoriques max: {total_potential_sessions}\n"
-        stats += f"   Sessions créées: {len(self.sessions)}\n"
-        efficiency = (1 - len(self.sessions) / total_potential_sessions) * 100
-        stats += f"   Efficacité de regroupement: {efficiency:.1f}%\n"
+        # Calculer le nombre total de cours (prendre le premier programme comme référence)
+        if self.programs_requirements:
+            # Tous les programmes ont 36 cours dans ce système
+            total_courses_per_student = 36
+            total_potential_sessions = len(self.students) * total_courses_per_student
+            stats += f"   Sessions théoriques max: {total_potential_sessions}\n"
+            stats += f"   Sessions créées: {len(self.sessions)}\n"
+            efficiency = (1 - len(self.sessions) / total_potential_sessions) * 100
+            stats += f"   Efficacité de regroupement: {efficiency:.1f}%\n"
+        else:
+            stats += f"   Sessions créées: {len(self.sessions)}\n"
 
         # Vérification: tous les étudiants dans tous les cours
         stats += "\n✓ VÉRIFICATION DES CONTRAINTES\n"
@@ -1318,6 +1346,7 @@ class SchedulerApp:
                         "Jour": session.timeslot.day,
                         "Période": session.timeslot.period,
                         "Cours": session.course_type.value,
+                        "Groupe": session.assigned_group.name if session.assigned_group else "N/A",
                         "ID Session": session.id,
                         "Enseignant": session.assigned_teacher.name if session.assigned_teacher else "N/A",
                         "Salle": session.assigned_room.name if session.assigned_room else "N/A",
@@ -1336,6 +1365,8 @@ class SchedulerApp:
                         individual_data.append({
                             "Étudiant ID": student.id,
                             "Étudiant": student.name,
+                            "Programme": student.program if student.program else "N/A",
+                            "Groupe": entry.session.assigned_group.name if entry.session and entry.session.assigned_group else "N/A",
                             "Jour": entry.timeslot.day,
                             "Période": entry.timeslot.period,
                             "Cours": entry.course_type.value,
@@ -1358,6 +1389,8 @@ class SchedulerApp:
                             "Jour": session.timeslot.day,
                             "Période": session.timeslot.period,
                             "Cours": session.course_type.value,
+                            "Groupe": session.assigned_group.name if session.assigned_group else "N/A",
+                            "Salle": session.assigned_room.name if session.assigned_room else "N/A",
                             "Nombre d'étudiants": len(session.students)
                         })
 
