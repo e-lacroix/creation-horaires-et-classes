@@ -1,8 +1,8 @@
 """
 Modèles de données pour le système de création d'horaires
 """
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
 from enum import Enum
 
 
@@ -29,6 +29,8 @@ class Student:
     id: int
     name: str
     grade: int  # Secondaire 1-5
+    program: str = ""  # Nom du programme (ex: "Secondaire 4 Excellence")
+    group_id: Optional[int] = None  # ID du groupe auquel l'étudiant est assigné
 
     def __hash__(self):
         return hash(self.id)
@@ -98,6 +100,22 @@ class TimeSlot:
 
 
 @dataclass
+class Group:
+    """Représente un groupe d'étudiants dans un programme"""
+    id: int
+    name: str  # Ex: "Excellence Groupe 1"
+    program_name: str  # Ex: "Secondaire 4 Excellence"
+    students: List[Student] = field(default_factory=list)
+    schedule: Dict[TimeSlot, CourseType] = field(default_factory=dict)  # Horaire du groupe
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __str__(self):
+        return f"{self.name} ({self.program_name}) - {len(self.students)} étudiants"
+
+
+@dataclass
 class CourseSession:
     """Représente une session de cours (regroupement d'étudiants au même moment)"""
     id: int
@@ -105,6 +123,7 @@ class CourseSession:
     timeslot: TimeSlot
     assigned_teacher: Optional[Teacher] = None
     assigned_room: Optional[Classroom] = None
+    assigned_group: Optional['Group'] = None  # Groupe assigné à cette session
     students: List[Student] = None
 
     def __post_init__(self):

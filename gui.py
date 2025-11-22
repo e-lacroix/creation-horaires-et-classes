@@ -10,7 +10,7 @@ import pandas as pd
 from typing import List, Dict
 from models import (CourseSession, Teacher, Classroom, Student, CourseType,
                     TimeSlot, StudentScheduleEntry)
-from scheduler import ScheduleOptimizer, GroupingOption, GroupingStrategy, ProgramVariant, GroupSizeOption
+from scheduler import ScheduleOptimizer
 from data_generator import generate_sample_data
 from data_manager import DataManager
 import subprocess
@@ -42,28 +42,24 @@ class SchedulerApp:
         self.status_var = StringVar(value="Prêt à générer l'horaire")
         self.selected_student_var = IntVar(value=0)
 
-        # Variables pour les tailles de groupe personnalisées
-        self.small_group_min = IntVar(value=15)
-        self.small_group_max = IntVar(value=20)
-        self.medium_group_min = IntVar(value=20)
-        self.medium_group_max = IntVar(value=25)
-        self.large_group_min = IntVar(value=25)
-        self.large_group_max = IntVar(value=32)
+        # Variables pour le nombre de groupes par programme
+        self.program_groups = {}  # Dict[program_name, IntVar] - nombre de groupes par programme
+        self.program_labels = {}  # Dict[program_name, Label] - labels d'info par programme
 
         # Données
-        self.course_requirements = {}
+        self.programs_requirements = {}  # Dict[program_name, Dict[CourseType, int]]
         self.teachers = []
         self.classrooms = []
         self.students = []
+        self.students_by_program = {}  # Dict[program_name, List[Student]]
+        self.groups = []  # List[Group] - groupes créés pour chaque programme
         self.sessions = []
         self.student_schedules = {}
         self.min_students_per_session = 20
 
-        # Nouvelles données pour le flux en 3 étapes
-        self.grouping_options = []  # Les 9 options générées
-        self.selected_option = None  # L'option sélectionnée par l'utilisateur
-        self.step1_completed = False  # Étape 1 : Options générées et sélectionnées
-        self.step2_completed = False  # Étape 2 : Horaires étudiants générés
+        # Nouvelles données pour le flux en 3 étapes (avec groupes par programme)
+        self.step1_completed = False  # Étape 1 : Programmes chargés et groupes configurés
+        self.step2_completed = False  # Étape 2 : Horaires de groupe générés
         self.step3_completed = False  # Étape 3 : Enseignants/salles assignés
 
         self.create_widgets()
@@ -345,123 +341,54 @@ class SchedulerApp:
 
 
     def create_options_tab(self, parent):
-        """Crée l'onglet des options de regroupement"""
+        """Crée l'onglet de configuration des groupes par programme"""
         # Frame principal avec scrollbar
         main_frame = ttk.Frame(parent)
         main_frame.pack(fill=BOTH, expand=YES, padx=10, pady=10)
 
-        # Section de configuration des tailles de groupe
-        config_frame = ttk.LabelFrame(main_frame, text="⚙️ Configuration des tailles de groupe", padding=15)
-        config_frame.pack(fill=X, pady=(0, 10))
-
-        ttk.Label(
-            config_frame,
-            text="Personnalisez les tailles de groupe avant de générer les options",
-            font=("Segoe UI", 9),
-            foreground=self.BLACK
-        ).pack(anchor=W, pady=(0, 10))
-
-        # Frame pour les 3 types de groupes
-        groups_config_frame = ttk.Frame(config_frame)
-        groups_config_frame.pack(fill=X, pady=(0, 10))
-
-        # Petits groupes
-        small_frame = ttk.Frame(groups_config_frame)
-        small_frame.pack(side=LEFT, padx=(0, 20))
-        ttk.Label(small_frame, text="Petits groupes:", font=("Segoe UI", 9, "bold")).pack(anchor=W)
-        small_controls = ttk.Frame(small_frame)
-        small_controls.pack(anchor=W, pady=5)
-        ttk.Label(small_controls, text="Min:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
-        ttk.Spinbox(small_controls, from_=10, to=30, textvariable=self.small_group_min, width=5).pack(side=LEFT, padx=(0, 10))
-        ttk.Label(small_controls, text="Max:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
-        ttk.Spinbox(small_controls, from_=10, to=32, textvariable=self.small_group_max, width=5).pack(side=LEFT)
-
-        # Groupes moyens
-        medium_frame = ttk.Frame(groups_config_frame)
-        medium_frame.pack(side=LEFT, padx=(0, 20))
-        ttk.Label(medium_frame, text="Groupes moyens:", font=("Segoe UI", 9, "bold")).pack(anchor=W)
-        medium_controls = ttk.Frame(medium_frame)
-        medium_controls.pack(anchor=W, pady=5)
-        ttk.Label(medium_controls, text="Min:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
-        ttk.Spinbox(medium_controls, from_=10, to=30, textvariable=self.medium_group_min, width=5).pack(side=LEFT, padx=(0, 10))
-        ttk.Label(medium_controls, text="Max:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
-        ttk.Spinbox(medium_controls, from_=10, to=32, textvariable=self.medium_group_max, width=5).pack(side=LEFT)
-
-        # Grands groupes
-        large_frame = ttk.Frame(groups_config_frame)
-        large_frame.pack(side=LEFT)
-        ttk.Label(large_frame, text="Grands groupes:", font=("Segoe UI", 9, "bold")).pack(anchor=W)
-        large_controls = ttk.Frame(large_frame)
-        large_controls.pack(anchor=W, pady=5)
-        ttk.Label(large_controls, text="Min:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
-        ttk.Spinbox(large_controls, from_=10, to=30, textvariable=self.large_group_min, width=5).pack(side=LEFT, padx=(0, 10))
-        ttk.Label(large_controls, text="Max:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
-        ttk.Spinbox(large_controls, from_=10, to=32, textvariable=self.large_group_max, width=5).pack(side=LEFT)
-
-        # Info en haut
-        info_label = ttk.Label(
+        # En-tête
+        header_label = ttk.Label(
             main_frame,
-            text="Sélectionnez une option de regroupement parmi les 9 configurations disponibles",
-            font=("Segoe UI", 11, "bold"),
+            text="Configuration des groupes par programme",
+            font=("Segoe UI", 16, "bold"),
             foreground=self.GOLD_DARK
         )
-        info_label.pack(anchor=W, pady=(10, 10))
+        header_label.pack(anchor=W, pady=(0, 5))
 
-        # Treeview pour afficher les options
-        tree_frame = ttk.Frame(main_frame)
-        tree_frame.pack(fill=BOTH, expand=YES)
-
-        columns = ("ID", "Nom", "Taille groupe", "Stratégie", "Variante programme", "Sessions estimées", "Taille moy.")
-        self.options_tree = ttk.Treeview(
-            tree_frame,
-            columns=columns,
-            show="headings",
-            height=12
-        )
-
-        # Scrollbars
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.options_tree.yview)
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.options_tree.xview)
-        self.options_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-
-        # Configuration des colonnes
-        self.options_tree.heading("ID", text="#")
-        self.options_tree.heading("Nom", text="Nom")
-        self.options_tree.heading("Taille groupe", text="Taille groupe")
-        self.options_tree.heading("Stratégie", text="Stratégie d'optimisation")
-        self.options_tree.heading("Variante programme", text="Variante programme")
-        self.options_tree.heading("Sessions estimées", text="Sessions estimées")
-        self.options_tree.heading("Taille moy.", text="Taille moy. groupe")
-
-        self.options_tree.column("ID", width=40, anchor=CENTER)
-        self.options_tree.column("Nom", width=150)
-        self.options_tree.column("Taille groupe", width=120)
-        self.options_tree.column("Stratégie", width=200)
-        self.options_tree.column("Variante programme", width=150)
-        self.options_tree.column("Sessions estimées", width=130, anchor=CENTER)
-        self.options_tree.column("Taille moy.", width=130, anchor=CENTER)
-
-        # Pack
-        self.options_tree.pack(side=LEFT, fill=BOTH, expand=YES)
-        vsb.pack(side=RIGHT, fill=Y)
-        hsb.pack(side=BOTTOM, fill=X)
-
-        # Bind la sélection
-        self.options_tree.bind("<<TreeviewSelect>>", self.on_option_selected)
-
-        # Frame pour la description de l'option sélectionnée
-        desc_frame = ttk.LabelFrame(main_frame, text="Description de l'option", padding=10)
-        desc_frame.pack(fill=X, pady=(10, 0))
-
-        self.option_desc_label = ttk.Label(
-            desc_frame,
-            text="Sélectionnez une option pour voir sa description détaillée",
+        info_label = ttk.Label(
+            main_frame,
+            text="Cliquez sur 'Charger les programmes' pour voir les programmes disponibles, puis configurez le nombre de groupes pour chaque programme.",
             font=("Segoe UI", 10),
-            wraplength=1300,
-            justify=LEFT,
             foreground=self.BLACK
         )
-        self.option_desc_label.pack(anchor=W)
+        info_label.pack(anchor=W, pady=(0, 20))
+
+        # Bouton pour charger les programmes
+        load_btn = ttk.Button(
+            main_frame,
+            text="📂 Charger les programmes",
+            command=self.load_programs_config,
+            style="Gold.TButton",
+            width=30
+        )
+        load_btn.pack(anchor=W, pady=(0, 20))
+
+        # Frame qui contiendra la configuration des programmes (créé dynamiquement)
+        self.programs_config_frame = ttk.LabelFrame(
+            main_frame,
+            text="⚙️ Nombre de groupes par programme",
+            padding=15
+        )
+        self.programs_config_frame.pack(fill=BOTH, expand=YES)
+
+        # Message initial
+        initial_msg = ttk.Label(
+            self.programs_config_frame,
+            text="Cliquez sur 'Charger les programmes' pour commencer",
+            font=("Segoe UI", 10),
+            foreground=self.BLACK
+        )
+        initial_msg.pack(pady=50)
 
     def create_sessions_tab(self, parent):
         """Crée l'onglet des sessions de cours"""
@@ -685,101 +612,219 @@ class SchedulerApp:
             self.generate_btn.config(state="normal")
 
     # ========================
-    # NOUVELLES MÉTHODES POUR LE FLUX EN 3 ÉTAPES
+    # NOUVELLES MÉTHODES POUR LE FLUX EN 3 ÉTAPES (GROUPES PAR PROGRAMME)
     # ========================
 
-    def step1_generate_options(self):
-        """ÉTAPE 1 : Génère les 9 options de regroupement"""
+    def load_programs_config(self):
+        """Charge les programmes depuis les CSV et affiche la configuration"""
         try:
-            # Valider les tailles de groupe
-            validation_errors = []
-
-            if self.small_group_min.get() >= self.small_group_max.get():
-                validation_errors.append("Petits groupes : Min doit être < Max")
-            if self.medium_group_min.get() >= self.medium_group_max.get():
-                validation_errors.append("Groupes moyens : Min doit être < Max")
-            if self.large_group_min.get() >= self.large_group_max.get():
-                validation_errors.append("Grands groupes : Min doit être < Max")
-
-            if self.small_group_min.get() < 5 or self.small_group_max.get() > 32:
-                validation_errors.append("Petits groupes : Les valeurs doivent être entre 5 et 32")
-            if self.medium_group_min.get() < 5 or self.medium_group_max.get() > 32:
-                validation_errors.append("Groupes moyens : Les valeurs doivent être entre 5 et 32")
-            if self.large_group_min.get() < 5 or self.large_group_max.get() > 32:
-                validation_errors.append("Grands groupes : Les valeurs doivent être entre 5 et 32")
-
-            if validation_errors:
-                Messagebox.show_error(
-                    "Erreurs de validation :\n\n" + "\n".join(validation_errors),
-                    "Valeurs invalides"
-                )
-                return
-
-            self.status_var.set("Chargement des données depuis les fichiers CSV...")
-            self.step1_btn.config(state="disabled")
+            self.status_var.set("Chargement des programmes depuis les fichiers CSV...")
             self.progress.start()
             self.root.update()
 
             # Charger les données
-            self.course_requirements, self.teachers, self.classrooms, self.students, self.min_students_per_session = \
+            from data_generator import generate_sample_data, group_students_by_program
+            self.programs_requirements, self.teachers, self.classrooms, self.students, self.min_students_per_session = \
                 generate_sample_data(num_students=200, num_teachers=50, num_classrooms=30, use_csv_data=True)
 
-            num_students = len(self.students)
-            self.status_var.set(f"Génération de 9 options pour {num_students} étudiants...")
-            self.root.update()
-
-            # Créer les tailles de groupe personnalisées à partir des valeurs de l'interface
-            custom_group_sizes = [
-                GroupSizeOption(
-                    "Petits groupes",
-                    self.small_group_min.get(),
-                    self.small_group_max.get(),
-                    f"Groupes de {self.small_group_min.get()}-{self.small_group_max.get()} étudiants (plus de sessions, plus d'attention individuelle)"
-                ),
-                GroupSizeOption(
-                    "Groupes moyens",
-                    self.medium_group_min.get(),
-                    self.medium_group_max.get(),
-                    f"Groupes de {self.medium_group_min.get()}-{self.medium_group_max.get()} étudiants (équilibre entre taille et ressources)"
-                ),
-                GroupSizeOption(
-                    "Grands groupes",
-                    self.large_group_min.get(),
-                    self.large_group_max.get(),
-                    f"Groupes de {self.large_group_min.get()}-{self.large_group_max.get()} étudiants (moins de sessions, optimisation des ressources)"
-                )
-            ]
-
-            # Générer les 9 options avec les tailles personnalisées
-            self.grouping_options = ScheduleOptimizer.generate_grouping_options(
-                self.students,
-                self.course_requirements,
-                custom_group_sizes
-            )
-
-            # Afficher les options dans le treeview
-            self.display_options()
+            # Grouper les étudiants par programme
+            self.students_by_program = group_students_by_program(self.students)
 
             self.progress.stop()
-            self.status_var.set("9 options générées. Sélectionnez-en une et passez à l'étape 2.")
+
+            # Vider le frame de configuration
+            for widget in self.programs_config_frame.winfo_children():
+                widget.destroy()
+
+            # Créer un widget pour chaque programme
+            row = 0
+            for program_name, program_students in self.students_by_program.items():
+                # Frame pour ce programme
+                program_frame = ttk.Frame(self.programs_config_frame)
+                program_frame.grid(row=row, column=0, sticky=W+E, padx=5, pady=10)
+
+                # Nom du programme (colonne 0)
+                name_label = ttk.Label(
+                    program_frame,
+                    text=program_name,
+                    font=("Segoe UI", 11, "bold"),
+                    foreground=self.GOLD_DARK
+                )
+                name_label.grid(row=0, column=0, sticky=W, padx=(0, 20))
+
+                # Nombre d'étudiants (colonne 1)
+                students_label = ttk.Label(
+                    program_frame,
+                    text=f"{len(program_students)} étudiants",
+                    font=("Segoe UI", 10)
+                )
+                students_label.grid(row=0, column=1, sticky=W, padx=(0, 20))
+
+                # Spinbox pour nombre de groupes (colonne 2)
+                groups_frame = ttk.Frame(program_frame)
+                groups_frame.grid(row=0, column=2, sticky=W, padx=(0, 20))
+
+                ttk.Label(groups_frame, text="Nombre de groupes:", font=("Segoe UI", 10)).pack(side=LEFT, padx=(0, 5))
+
+                # Calculer une valeur par défaut raisonnable (environ 25 étudiants par groupe)
+                default_groups = max(1, round(len(program_students) / 25))
+                group_var = IntVar(value=default_groups)
+                self.program_groups[program_name] = group_var
+
+                spinbox = ttk.Spinbox(
+                    groups_frame,
+                    from_=1,
+                    to=10,
+                    textvariable=group_var,
+                    width=8,
+                    command=lambda pn=program_name: self.update_program_stats(pn)
+                )
+                spinbox.pack(side=LEFT)
+
+                # Label pour taille moyenne (colonne 3)
+                avg_size = len(program_students) / default_groups
+                info_label = ttk.Label(
+                    program_frame,
+                    text=f"≈ {avg_size:.1f} étudiants/groupe",
+                    font=("Segoe UI", 9),
+                    foreground=self.BLACK
+                )
+                info_label.grid(row=0, column=3, sticky=W)
+                self.program_labels[program_name] = info_label
+
+                row += 1
+
+            # Résumé en bas
+            summary_frame = ttk.Frame(self.programs_config_frame)
+            summary_frame.grid(row=row, column=0, sticky=W+E, pady=(20, 0))
+
+            total_students = sum(len(students) for students in self.students_by_program.values())
+            total_programs = len(self.students_by_program)
+
+            summary_text = f"Total : {total_students} étudiants dans {total_programs} programmes"
+            summary_label = ttk.Label(
+                summary_frame,
+                text=summary_text,
+                font=("Segoe UI", 10, "bold"),
+                foreground=self.GOLD_DARK
+            )
+            summary_label.pack(anchor=W)
+
+            self.status_var.set(f"Programmes chargés : {total_programs} programmes, {total_students} étudiants")
 
             Messagebox.show_info(
-                f"9 options de regroupement ont été générées avec succès!\n\n"
-                f"Données chargées:\n"
-                f"• {num_students} étudiants\n"
+                f"Programmes chargés avec succès!\n\n"
+                f"• {total_programs} programmes\n"
+                f"• {total_students} étudiants\n"
                 f"• {len(self.teachers)} enseignants\n"
                 f"• {len(self.classrooms)} salles\n\n"
-                "Consultez l'onglet '⚙️ Options de regroupement' et sélectionnez une option.",
-                "Options générées"
+                "Configurez le nombre de groupes pour chaque programme, puis passez à l'étape 1.",
+                "Programmes chargés"
             )
-
-            # Activer la sélection (pas encore le bouton 2)
-            self.notebook.select(0)  # Aller sur l'onglet des options
 
         except Exception as e:
             import traceback
             self.progress.stop()
-            self.status_var.set("❌ Erreur lors de la génération des options")
+            self.status_var.set("❌ Erreur lors du chargement des programmes")
+            Messagebox.show_error(
+                f"Une erreur s'est produite:\n{str(e)}\n\n{traceback.format_exc()}",
+                "Erreur"
+            )
+
+    def update_program_stats(self, program_name):
+        """Met à jour les statistiques d'un programme quand le nombre de groupes change"""
+        if program_name in self.program_groups and program_name in self.students_by_program:
+            num_groups = self.program_groups[program_name].get()
+            num_students = len(self.students_by_program[program_name])
+            avg_size = num_students / num_groups if num_groups > 0 else 0
+
+            if program_name in self.program_labels:
+                self.program_labels[program_name].config(text=f"≈ {avg_size:.1f} étudiants/groupe")
+
+    def step1_generate_options(self):
+        """ÉTAPE 1 : Crée les groupes selon la configuration par programme"""
+        try:
+            # Vérifier que les programmes sont chargés
+            if not self.students_by_program or not self.program_groups:
+                Messagebox.show_warning(
+                    "Veuillez d'abord charger les programmes en cliquant sur 'Charger les programmes'.",
+                    "Programmes non chargés"
+                )
+                return
+
+            self.status_var.set("Création des groupes par programme...")
+            self.step1_btn.config(state="disabled")
+            self.progress.start()
+            self.root.update()
+
+            # Créer les groupes pour chaque programme
+            from models import Group
+            self.groups = []
+            group_id = 1
+
+            total_groups_created = 0
+
+            for program_name, program_students in self.students_by_program.items():
+                num_groups = self.program_groups[program_name].get()
+
+                if num_groups < 1:
+                    Messagebox.show_warning(
+                        f"Le programme '{program_name}' doit avoir au moins 1 groupe.",
+                        "Configuration invalide"
+                    )
+                    self.progress.stop()
+                    self.step1_btn.config(state="normal")
+                    return
+
+                # Diviser les étudiants équitablement entre les groupes
+                students_per_group = len(program_students) // num_groups
+                extra_students = len(program_students) % num_groups
+
+                student_index = 0
+                for group_num in range(num_groups):
+                    # Calculer combien d'étudiants dans ce groupe
+                    group_size = students_per_group + (1 if group_num < extra_students else 0)
+
+                    # Créer le groupe
+                    group = Group(
+                        id=group_id,
+                        name=f"{program_name} - Groupe {group_num + 1}",
+                        program_name=program_name
+                    )
+
+                    # Assigner les étudiants à ce groupe
+                    for i in range(group_size):
+                        if student_index < len(program_students):
+                            student = program_students[student_index]
+                            student.group_id = group_id
+                            group.students.append(student)
+                            student_index += 1
+
+                    self.groups.append(group)
+                    group_id += 1
+                    total_groups_created += 1
+
+            self.progress.stop()
+            self.step1_completed = True
+            self.step2_btn.config(state="normal")
+
+            # Construire le message récapitulatif
+            summary = f"Groupes créés avec succès!\n\n"
+            for program_name in self.students_by_program.keys():
+                num_groups = self.program_groups[program_name].get()
+                program_groups = [g for g in self.groups if g.program_name == program_name]
+                summary += f"• {program_name}: {num_groups} groupes\n"
+                for g in program_groups:
+                    summary += f"  - {g.name}: {len(g.students)} étudiants\n"
+
+            self.status_var.set(f"✓ {total_groups_created} groupes créés. Passez à l'étape 2.")
+
+            Messagebox.show_info(summary, "Étape 1 complétée")
+
+        except Exception as e:
+            import traceback
+            self.progress.stop()
+            self.status_var.set("❌ Erreur lors de la création des groupes")
             Messagebox.show_error(
                 f"Une erreur s'est produite:\n{str(e)}\n\n{traceback.format_exc()}",
                 "Erreur"
@@ -788,97 +833,55 @@ class SchedulerApp:
         finally:
             self.step1_btn.config(state="normal")
 
-    def display_options(self):
-        """Affiche les 9 options dans le treeview"""
-        # Vider le treeview
-        for item in self.options_tree.get_children():
-            self.options_tree.delete(item)
-
-        # Ajouter les options
-        for i, option in enumerate(self.grouping_options):
-            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
-
-            self.options_tree.insert(
-                "",
-                "end",
-                values=(
-                    option.id + 1,
-                    option.name,
-                    f"{option.group_size.min_students}-{option.group_size.max_students}",
-                    option.strategy.value,
-                    option.program_variant.value,
-                    option.estimated_sessions,
-                    f"{option.avg_group_size:.1f}"
-                ),
-                tags=(tag,)
-            )
-
-        # Configuration des tags
-        self.options_tree.tag_configure('evenrow', background=self.GRAY_LIGHT)
-        self.options_tree.tag_configure('oddrow', background=self.WHITE)
-
-    def on_option_selected(self, event=None):
-        """Appelé quand une option est sélectionnée"""
-        selection = self.options_tree.selection()
-        if not selection:
-            return
-
-        # Récupérer l'index de l'option sélectionnée
-        item = self.options_tree.item(selection[0])
-        option_id = int(item['values'][0]) - 1
-
-        if 0 <= option_id < len(self.grouping_options):
-            self.selected_option = self.grouping_options[option_id]
-
-            # Afficher la description
-            desc = f"Option {option_id + 1} sélectionnée:\n\n"
-            desc += f"Taille de groupe: {self.selected_option.group_size.name} "
-            desc += f"({self.selected_option.group_size.min_students}-{self.selected_option.group_size.max_students} étudiants)\n"
-            desc += f"Stratégie: {self.selected_option.strategy.value}\n"
-            desc += f"Variante: {self.selected_option.program_variant.value}\n\n"
-            desc += f"Estimation: ~{self.selected_option.estimated_sessions} sessions avec une taille moyenne de {self.selected_option.avg_group_size:.1f} étudiants\n\n"
-            desc += f"{self.selected_option.group_size.description}"
-
-            self.option_desc_label.config(text=desc)
-
-            # Activer le bouton de l'étape 2
-            self.step2_btn.config(state="normal")
-            self.step1_completed = True
-            self.status_var.set(f"Option {option_id + 1} sélectionnée. Vous pouvez passer à l'étape 2.")
 
     def step2_generate_student_schedules(self):
-        """ÉTAPE 2 : Génère les horaires des étudiants avec l'option sélectionnée"""
-        if not self.step1_completed or not self.selected_option:
+        """ÉTAPE 2 : Génère les horaires de groupe"""
+        if not self.step1_completed or not self.groups:
             Messagebox.show_warning(
-                "Veuillez d'abord compléter l'étape 1 et sélectionner une option.",
+                "Veuillez d'abord compléter l'étape 1 (créer les groupes).",
                 "Étape 1 non complétée"
             )
             return
 
         try:
-            self.status_var.set("Génération des horaires étudiants en cours...")
+            self.status_var.set("Génération des horaires de groupe en cours...")
             self.step2_btn.config(state="disabled")
             self.progress.start()
             self.root.update()
 
-            # Créer l'optimiseur avec l'option sélectionnée
-            optimizer = ScheduleOptimizer(
-                self.teachers,
-                self.classrooms,
-                self.students,
-                self.course_requirements,
-                self.selected_option
+            # Appeler le nouveau solveur
+            success, sessions, groups_with_schedules = ScheduleOptimizer.solve_group_schedules(
+                self.groups,
+                self.programs_requirements,
+                timeout_seconds=600  # 10 minutes
             )
-
-            # Résoudre UNIQUEMENT les horaires étudiants
-            success, sessions, student_schedules = optimizer.solve_student_schedules_only()
 
             self.progress.stop()
 
             if success:
                 self.sessions = sessions
-                self.student_schedules = student_schedules
+                self.groups = groups_with_schedules
                 self.step2_completed = True
+
+                # Créer les horaires individuels des étudiants basés sur leur groupe
+                self.student_schedules = {}
+                for group in self.groups:
+                    for student in group.students:
+                        schedule_entries = []
+                        for timeslot, course_type in group.schedule.items():
+                            # Trouver la session correspondante
+                            session = next((s for s in sessions if s.timeslot == timeslot and
+                                          s.assigned_group and s.assigned_group.id == group.id), None)
+
+                            entry = StudentScheduleEntry(
+                                course_type=course_type,
+                                timeslot=timeslot,
+                                session=session
+                            )
+                            schedule_entries.append(entry)
+
+                        self.student_schedules[student.id] = sorted(schedule_entries,
+                                                                    key=lambda x: (x.timeslot.day, x.timeslot.period))
 
                 # Afficher les résultats (sans enseignants/salles)
                 self.display_sessions()
@@ -888,11 +891,11 @@ class SchedulerApp:
                 # Activer le bouton de l'étape 3
                 self.step3_btn.config(state="normal")
 
-                self.status_var.set(f"✓ Horaires étudiants générés! {len(sessions)} sessions créées.")
+                self.status_var.set(f"✓ Horaires de groupe générés! {len(sessions)} sessions créées.")
                 Messagebox.show_info(
-                    f"Les horaires des étudiants ont été générés avec succès!\n\n"
+                    f"Les horaires des groupes ont été générés avec succès!\n\n"
                     f"• {len(sessions)} sessions créées\n"
-                    f"• {len(self.students)} étudiants avec horaires personnalisés\n"
+                    f"• {len(self.groups)} groupes avec horaires complets\n"
                     f"• Enseignants et salles pas encore assignés\n\n"
                     "Passez à l'étape 3 pour assigner les enseignants et salles.",
                     "Étape 2 complétée"
@@ -900,10 +903,10 @@ class SchedulerApp:
             else:
                 self.status_var.set("❌ Échec de la génération des horaires")
                 Messagebox.show_error(
-                    "Impossible de trouver une solution pour les horaires étudiants.\n\n"
+                    "Impossible de trouver une solution pour les horaires de groupe.\n\n"
                     "Suggestions:\n"
-                    "• Essayez une autre option de regroupement\n"
-                    "• Vérifiez les contraintes des données",
+                    "• Vérifiez que les groupes sont bien configurés\n"
+                    "• Essayez un nombre différent de groupes",
                     "Erreur d'optimisation"
                 )
 
@@ -995,10 +998,12 @@ class SchedulerApp:
 
         if result == "Yes":
             # Réinitialiser les données
-            self.grouping_options = []
-            self.selected_option = None
+            self.groups = []
             self.sessions = []
             self.student_schedules = {}
+            self.students_by_program = {}
+            self.program_groups = {}
+            self.program_labels = {}
             self.step1_completed = False
             self.step2_completed = False
             self.step3_completed = False
@@ -1010,8 +1015,6 @@ class SchedulerApp:
             self.export_btn.config(state="disabled")
 
             # Vider les affichages
-            for item in self.options_tree.get_children():
-                self.options_tree.delete(item)
             for item in self.sessions_tree.get_children():
                 self.sessions_tree.delete(item)
             for item in self.individual_tree.get_children():
@@ -1019,10 +1022,21 @@ class SchedulerApp:
             for item in self.teacher_tree.get_children():
                 self.teacher_tree.delete(item)
 
-            self.option_desc_label.config(text="Sélectionnez une option pour voir sa description détaillée")
             self.stats_text.delete("1.0", "end")
 
-            self.status_var.set("Flux de travail réinitialisé. Commencez par l'étape 1.")
+            # Réinitialiser le frame de configuration des programmes
+            for widget in self.programs_config_frame.winfo_children():
+                widget.destroy()
+
+            initial_msg = ttk.Label(
+                self.programs_config_frame,
+                text="Cliquez sur 'Charger les programmes' pour commencer",
+                font=("Segoe UI", 10),
+                foreground=self.BLACK
+            )
+            initial_msg.pack(pady=50)
+
+            self.status_var.set("Flux de travail réinitialisé. Chargez les programmes pour commencer.")
 
     # ========================
     # FIN DES NOUVELLES MÉTHODES

@@ -6,7 +6,7 @@ Processus en 3 étapes : 1) Options de regroupement, 2) Horaires étudiants, 3) 
 from ortools.sat.python import cp_model
 from typing import List, Dict, Tuple, Optional
 from models import (CourseSession, TimeSlot, Teacher, Classroom, Student,
-                   CourseType, StudentScheduleEntry)
+                   CourseType, StudentScheduleEntry, Group)
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -891,3 +891,206 @@ class ScheduleOptimizer:
 
         print(f"Solution extraite: {len(sessions)} sessions créées pour {len(self.students)} étudiants")
         return sessions, student_schedules
+
+    @staticmethod
+    def solve_group_schedules(groups: List[Group], programs_requirements: Dict[str, Dict[CourseType, int]],
+                             timeout_seconds: int = 600) -> Tuple[bool, List[CourseSession], List[Group]]:
+        """
+        Génère les horaires pour chaque groupe (nouvelle approche basée sur les groupes).
+
+        Contraintes:
+        - Chaque groupe a exactement 1 cours par période (4 périodes/jour)
+        - Chaque groupe complète tous ses cours requis (selon son programme)
+        - Max 1 cours par matière par jour
+
+        Args:
+            groups: Liste des groupes créés (avec étudiants assignés)
+            programs_requirements: Dict[program_name, Dict[CourseType, count]]
+            timeout_seconds: Temps limite pour la résolution (défaut: 600s = 10 min)
+
+        Returns:
+            (success, sessions, groups_with_schedules)
+            - success: True si une solution a été trouvée
+            - sessions: Liste de CourseSession (sans enseignants/salles assignés)
+            - groups_with_schedules: Liste de groupes avec horaires remplis
+        """
+        print(f"\n=== OPTIMISATION DES HORAIRES DE GROUPE ===")
+        print(f"Nombre de groupes: {len(groups)}")
+        for group in groups:
+            print(f"  - {group.name}: {len(group.students)} étudiants, programme: {group.program_name}")
+
+        model = cp_model.CpModel()
+
+        # Calculer le nombre de jours nécessaires
+        max_courses = max(sum(reqs.values()) for reqs in programs_requirements.values())
+        periods_per_day = 4
+        num_days = (max_courses + periods_per_day - 1) // periods_per_day  # Arrondi vers le haut
+        num_days = max(num_days, 9)  # Minimum 9 jours
+
+        print(f"Configuration: {num_days} jours, {periods_per_day} périodes/jour")
+
+        # Créer tous les timeslots possibles
+        timeslots = []
+        for day in range(1, num_days + 1):
+            for period in range(1, periods_per_day + 1):
+                timeslots.append(TimeSlot(day, period))
+
+        print(f"Total timeslots: {len(timeslots)}")
+
+        # Variables de décision: group_timeslot_course[group_id][timeslot] = course_type_index
+        # course_type_index correspond à l'index du cours dans la liste des cours requis pour le programme
+        group_timeslot_course = {}
+        course_type_to_index = {}  # Map global pour tous les types de cours
+
+        # Créer un mapping global des types de cours
+        all_course_types = set()
+        for reqs in programs_requirements.values():
+            all_course_types.update(reqs.keys())
+        all_course_types = sorted(all_course_types, key=lambda x: x.value)
+
+        for idx, course_type in enumerate(all_course_types):
+            course_type_to_index[course_type] = idx
+
+        # Pour chaque groupe, créer des variables pour chaque timeslot
+        for group in groups:
+            group_timeslot_course[group.id] = {}
+            program_reqs = programs_requirements[group.program_name]
+
+            for timeslot in timeslots:
+                # Variable indiquant quel type de cours (ou rien = -1) à ce timeslot
+                # Domaine: -1 (pas de cours) ou index du type de cours
+                course_indices = [-1] + [course_type_to_index[ct] for ct in program_reqs.keys()]
+                group_timeslot_course[group.id][timeslot] = model.NewIntVarFromDomain(
+                    cp_model.Domain.FromValues(course_indices),
+                    f'group_{group.id}_timeslot_{timeslot.day}_{timeslot.period}'
+                )
+
+        # CONTRAINTE 1: Chaque groupe a exactement 4 périodes de cours par jour
+        print("Ajout contrainte 1: 4 périodes par jour")
+        for group in groups:
+            for day in range(1, num_days + 1):
+                day_timeslots = [ts for ts in timeslots if ts.day == day]
+                # Créer des variables booléennes explicites pour chaque période
+                has_course_vars = []
+                for ts in day_timeslots:
+                    has_course_var = model.NewBoolVar(f'group_{group.id}_day_{day}_period_{ts.period}_has_course')
+                    model.Add(group_timeslot_course[group.id][ts] != -1).OnlyEnforceIf(has_course_var)
+                    model.Add(group_timeslot_course[group.id][ts] == -1).OnlyEnforceIf(has_course_var.Not())
+                    has_course_vars.append(has_course_var)
+
+                # Exactement 4 périodes avec cours
+                model.Add(sum(has_course_vars) == 4)
+
+        # CONTRAINTE 2: Chaque groupe complète tous ses cours requis
+        print("Ajout contrainte 2: Tous les cours requis")
+        for group in groups:
+            program_reqs = programs_requirements[group.program_name]
+
+            for course_type, num_required in program_reqs.items():
+                course_idx = course_type_to_index[course_type]
+                # Créer des variables booléennes pour compter les occurrences
+                course_count_vars = []
+                for ts in timeslots:
+                    is_this_course = model.NewBoolVar(f'group_{group.id}_ts_{ts.day}_{ts.period}_is_{course_type.value}')
+                    model.Add(group_timeslot_course[group.id][ts] == course_idx).OnlyEnforceIf(is_this_course)
+                    model.Add(group_timeslot_course[group.id][ts] != course_idx).OnlyEnforceIf(is_this_course.Not())
+                    course_count_vars.append(is_this_course)
+
+                model.Add(sum(course_count_vars) == num_required)
+
+        # CONTRAINTE 3: Maximum 1 cours par matière par jour
+        print("Ajout contrainte 3: Max 1 cours par matière par jour")
+        for group in groups:
+            program_reqs = programs_requirements[group.program_name]
+
+            for day in range(1, num_days + 1):
+                day_timeslots = [ts for ts in timeslots if ts.day == day]
+
+                for course_type in program_reqs.keys():
+                    course_idx = course_type_to_index[course_type]
+                    # Créer des variables booléennes pour compter les occurrences ce jour
+                    course_today_vars = []
+                    for ts in day_timeslots:
+                        is_course_today = model.NewBoolVar(f'group_{group.id}_day_{day}_period_{ts.period}_is_{course_type.value}')
+                        model.Add(group_timeslot_course[group.id][ts] == course_idx).OnlyEnforceIf(is_course_today)
+                        model.Add(group_timeslot_course[group.id][ts] != course_idx).OnlyEnforceIf(is_course_today.Not())
+                        course_today_vars.append(is_course_today)
+
+                    model.Add(sum(course_today_vars) <= 1)
+
+        # OBJECTIF: Minimiser le nombre de jours utilisés
+        # (en pratique, grouper les cours au début)
+        days_used = []
+        for day in range(1, num_days + 1):
+            day_has_courses_vars = []
+            for group in groups:
+                day_timeslots = [ts for ts in timeslots if ts.day == day]
+                for ts in day_timeslots:
+                    has_course_at_ts = model.NewBoolVar(f'group_{group.id}_day_{day}_ts_{ts.period}_has_course_obj')
+                    model.Add(group_timeslot_course[group.id][ts] != -1).OnlyEnforceIf(has_course_at_ts)
+                    model.Add(group_timeslot_course[group.id][ts] == -1).OnlyEnforceIf(has_course_at_ts.Not())
+                    day_has_courses_vars.append(has_course_at_ts)
+
+            # Variable booléenne: ce jour est-il utilisé?
+            day_used = model.NewBoolVar(f'day_{day}_used')
+            model.AddMaxEquality(day_used, day_has_courses_vars)
+            days_used.append(day_used)
+
+        model.Minimize(sum(days_used))
+
+        # Résolution
+        print(f"\nDémarrage de la résolution (timeout: {timeout_seconds}s)...")
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = timeout_seconds
+        solver.parameters.num_search_workers = 8
+        solver.parameters.log_search_progress = True
+
+        status = solver.Solve(model)
+
+        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+            print(f"\n✓ Solution trouvée! (statut: {'OPTIMAL' if status == cp_model.OPTIMAL else 'FEASIBLE'})")
+            print(f"Temps de résolution: {solver.WallTime():.2f}s")
+            print(f"Jours utilisés: {solver.ObjectiveValue()}")
+
+            # Extraire la solution
+            index_to_course_type = {idx: ct for ct, idx in course_type_to_index.items()}
+
+            # Remplir les horaires des groupes
+            for group in groups:
+                group.schedule = {}
+                for timeslot in timeslots:
+                    course_idx = solver.Value(group_timeslot_course[group.id][timeslot])
+                    if course_idx != -1:
+                        course_type = index_to_course_type[course_idx]
+                        group.schedule[timeslot] = course_type
+
+            # Créer les sessions
+            sessions = []
+            session_id = 1
+
+            for group in groups:
+                for timeslot, course_type in group.schedule.items():
+                    session = CourseSession(
+                        id=session_id,
+                        course_type=course_type,
+                        timeslot=timeslot,
+                        assigned_group=group,
+                        students=group.students.copy()
+                    )
+                    sessions.append(session)
+                    session_id += 1
+
+            # Trier les sessions
+            sessions = sorted(sessions, key=lambda x: (x.timeslot.day, x.timeslot.period))
+
+            print(f"\nRésultat: {len(sessions)} sessions créées pour {len(groups)} groupes")
+
+            # Statistiques par groupe
+            for group in groups:
+                print(f"  - {group.name}: {len(group.schedule)} cours planifiés")
+
+            return True, sessions, groups
+
+        else:
+            print(f"\n✗ Aucune solution trouvée (statut: {solver.StatusName(status)})")
+            return False, [], groups
