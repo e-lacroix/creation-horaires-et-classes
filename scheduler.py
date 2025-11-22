@@ -59,9 +59,15 @@ class ScheduleOptimizer:
     ]
 
     @staticmethod
-    def generate_grouping_options(students: List[Student], course_requirements: Dict[CourseType, int]) -> List[GroupingOption]:
+    def generate_grouping_options(students: List[Student], course_requirements: Dict[CourseType, int],
+                                 custom_group_sizes: Optional[List[GroupSizeOption]] = None) -> List[GroupingOption]:
         """
         Génère 9 options de regroupement combinant tailles de groupe, stratégies et variantes de programme
+
+        Args:
+            students: Liste des étudiants
+            course_requirements: Dictionnaire des exigences de cours
+            custom_group_sizes: Liste optionnelle de tailles de groupe personnalisées (3 options)
 
         Returns:
             Liste de 9 GroupingOption avec estimations
@@ -72,7 +78,10 @@ class ScheduleOptimizer:
         strategies = list(GroupingStrategy)
         program_variants = list(ProgramVariant)
 
-        for group_size in ScheduleOptimizer.GROUP_SIZE_OPTIONS:
+        # Utiliser les tailles personnalisées si fournies, sinon utiliser les valeurs par défaut
+        group_sizes = custom_group_sizes if custom_group_sizes else ScheduleOptimizer.GROUP_SIZE_OPTIONS
+
+        for group_size in group_sizes:
             for strategy in strategies:
                 for variant in program_variants:
                     # Estimer le nombre de sessions et la taille moyenne des groupes

@@ -10,7 +10,7 @@ import pandas as pd
 from typing import List, Dict
 from models import (CourseSession, Teacher, Classroom, Student, CourseType,
                     TimeSlot, StudentScheduleEntry)
-from scheduler import ScheduleOptimizer, GroupingOption, GroupingStrategy, ProgramVariant
+from scheduler import ScheduleOptimizer, GroupingOption, GroupingStrategy, ProgramVariant, GroupSizeOption
 from data_generator import generate_sample_data
 from data_manager import DataManager
 import subprocess
@@ -41,6 +41,14 @@ class SchedulerApp:
         self.num_classrooms_var = IntVar(value=8)
         self.status_var = StringVar(value="Prêt à générer l'horaire")
         self.selected_student_var = IntVar(value=0)
+
+        # Variables pour les tailles de groupe personnalisées
+        self.small_group_min = IntVar(value=15)
+        self.small_group_max = IntVar(value=20)
+        self.medium_group_min = IntVar(value=20)
+        self.medium_group_max = IntVar(value=25)
+        self.large_group_min = IntVar(value=25)
+        self.large_group_max = IntVar(value=32)
 
         # Données
         self.course_requirements = {}
@@ -342,6 +350,54 @@ class SchedulerApp:
         main_frame = ttk.Frame(parent)
         main_frame.pack(fill=BOTH, expand=YES, padx=10, pady=10)
 
+        # Section de configuration des tailles de groupe
+        config_frame = ttk.LabelFrame(main_frame, text="⚙️ Configuration des tailles de groupe", padding=15)
+        config_frame.pack(fill=X, pady=(0, 10))
+
+        ttk.Label(
+            config_frame,
+            text="Personnalisez les tailles de groupe avant de générer les options",
+            font=("Segoe UI", 9),
+            foreground=self.BLACK
+        ).pack(anchor=W, pady=(0, 10))
+
+        # Frame pour les 3 types de groupes
+        groups_config_frame = ttk.Frame(config_frame)
+        groups_config_frame.pack(fill=X, pady=(0, 10))
+
+        # Petits groupes
+        small_frame = ttk.Frame(groups_config_frame)
+        small_frame.pack(side=LEFT, padx=(0, 20))
+        ttk.Label(small_frame, text="Petits groupes:", font=("Segoe UI", 9, "bold")).pack(anchor=W)
+        small_controls = ttk.Frame(small_frame)
+        small_controls.pack(anchor=W, pady=5)
+        ttk.Label(small_controls, text="Min:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
+        ttk.Spinbox(small_controls, from_=10, to=30, textvariable=self.small_group_min, width=5).pack(side=LEFT, padx=(0, 10))
+        ttk.Label(small_controls, text="Max:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
+        ttk.Spinbox(small_controls, from_=10, to=32, textvariable=self.small_group_max, width=5).pack(side=LEFT)
+
+        # Groupes moyens
+        medium_frame = ttk.Frame(groups_config_frame)
+        medium_frame.pack(side=LEFT, padx=(0, 20))
+        ttk.Label(medium_frame, text="Groupes moyens:", font=("Segoe UI", 9, "bold")).pack(anchor=W)
+        medium_controls = ttk.Frame(medium_frame)
+        medium_controls.pack(anchor=W, pady=5)
+        ttk.Label(medium_controls, text="Min:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
+        ttk.Spinbox(medium_controls, from_=10, to=30, textvariable=self.medium_group_min, width=5).pack(side=LEFT, padx=(0, 10))
+        ttk.Label(medium_controls, text="Max:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
+        ttk.Spinbox(medium_controls, from_=10, to=32, textvariable=self.medium_group_max, width=5).pack(side=LEFT)
+
+        # Grands groupes
+        large_frame = ttk.Frame(groups_config_frame)
+        large_frame.pack(side=LEFT)
+        ttk.Label(large_frame, text="Grands groupes:", font=("Segoe UI", 9, "bold")).pack(anchor=W)
+        large_controls = ttk.Frame(large_frame)
+        large_controls.pack(anchor=W, pady=5)
+        ttk.Label(large_controls, text="Min:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
+        ttk.Spinbox(large_controls, from_=10, to=30, textvariable=self.large_group_min, width=5).pack(side=LEFT, padx=(0, 10))
+        ttk.Label(large_controls, text="Max:", font=("Segoe UI", 9)).pack(side=LEFT, padx=(0, 5))
+        ttk.Spinbox(large_controls, from_=10, to=32, textvariable=self.large_group_max, width=5).pack(side=LEFT)
+
         # Info en haut
         info_label = ttk.Label(
             main_frame,
@@ -349,7 +405,7 @@ class SchedulerApp:
             font=("Segoe UI", 11, "bold"),
             foreground=self.GOLD_DARK
         )
-        info_label.pack(anchor=W, pady=(0, 10))
+        info_label.pack(anchor=W, pady=(10, 10))
 
         # Treeview pour afficher les options
         tree_frame = ttk.Frame(main_frame)
@@ -635,6 +691,30 @@ class SchedulerApp:
     def step1_generate_options(self):
         """ÉTAPE 1 : Génère les 9 options de regroupement"""
         try:
+            # Valider les tailles de groupe
+            validation_errors = []
+
+            if self.small_group_min.get() >= self.small_group_max.get():
+                validation_errors.append("Petits groupes : Min doit être < Max")
+            if self.medium_group_min.get() >= self.medium_group_max.get():
+                validation_errors.append("Groupes moyens : Min doit être < Max")
+            if self.large_group_min.get() >= self.large_group_max.get():
+                validation_errors.append("Grands groupes : Min doit être < Max")
+
+            if self.small_group_min.get() < 5 or self.small_group_max.get() > 32:
+                validation_errors.append("Petits groupes : Les valeurs doivent être entre 5 et 32")
+            if self.medium_group_min.get() < 5 or self.medium_group_max.get() > 32:
+                validation_errors.append("Groupes moyens : Les valeurs doivent être entre 5 et 32")
+            if self.large_group_min.get() < 5 or self.large_group_max.get() > 32:
+                validation_errors.append("Grands groupes : Les valeurs doivent être entre 5 et 32")
+
+            if validation_errors:
+                Messagebox.show_error(
+                    "Erreurs de validation :\n\n" + "\n".join(validation_errors),
+                    "Valeurs invalides"
+                )
+                return
+
             self.status_var.set("Chargement des données depuis les fichiers CSV...")
             self.step1_btn.config(state="disabled")
             self.progress.start()
@@ -648,10 +728,33 @@ class SchedulerApp:
             self.status_var.set(f"Génération de 9 options pour {num_students} étudiants...")
             self.root.update()
 
-            # Générer les 9 options
+            # Créer les tailles de groupe personnalisées à partir des valeurs de l'interface
+            custom_group_sizes = [
+                GroupSizeOption(
+                    "Petits groupes",
+                    self.small_group_min.get(),
+                    self.small_group_max.get(),
+                    f"Groupes de {self.small_group_min.get()}-{self.small_group_max.get()} étudiants (plus de sessions, plus d'attention individuelle)"
+                ),
+                GroupSizeOption(
+                    "Groupes moyens",
+                    self.medium_group_min.get(),
+                    self.medium_group_max.get(),
+                    f"Groupes de {self.medium_group_min.get()}-{self.medium_group_max.get()} étudiants (équilibre entre taille et ressources)"
+                ),
+                GroupSizeOption(
+                    "Grands groupes",
+                    self.large_group_min.get(),
+                    self.large_group_max.get(),
+                    f"Groupes de {self.large_group_min.get()}-{self.large_group_max.get()} étudiants (moins de sessions, optimisation des ressources)"
+                )
+            ]
+
+            # Générer les 9 options avec les tailles personnalisées
             self.grouping_options = ScheduleOptimizer.generate_grouping_options(
                 self.students,
-                self.course_requirements
+                self.course_requirements,
+                custom_group_sizes
             )
 
             # Afficher les options dans le treeview
