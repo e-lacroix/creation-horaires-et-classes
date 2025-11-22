@@ -1094,3 +1094,234 @@ class ScheduleOptimizer:
         else:
             print(f"\n✗ Aucune solution trouvée (statut: {solver.StatusName(status)})")
             return False, [], groups
+
+    @staticmethod
+    def solve_individual_schedules_by_program(students: List[Student],
+                                              programs_requirements: Dict[str, Dict[CourseType, int]],
+                                              timeout_seconds: int = 600) -> Tuple[bool, List[CourseSession], Dict[int, List[StudentScheduleEntry]]]:
+        """
+        ÉTAPE 2.5 (OPTIONNELLE): Génère des horaires individuels optimisés par programme.
+
+        Les étudiants d'un même programme peuvent se mélanger dans les sessions,
+        mais les étudiants de programmes différents ne peuvent JAMAIS être ensemble.
+
+        Args:
+            students: Liste des étudiants avec leurs programmes
+            programs_requirements: Dict[program_name, Dict[CourseType, count]]
+            timeout_seconds: Temps limite pour la résolution
+
+        Returns:
+            (success, sessions, student_schedules)
+        """
+        print(f"\n=== OPTIMISATION DES HORAIRES INDIVIDUELS PAR PROGRAMME ===")
+        print(f"Nombre d'étudiants: {len(students)}")
+
+        # Grouper les étudiants par programme
+        students_by_program = defaultdict(list)
+        for student in students:
+            program = student.program if student.program else "Défaut"
+            students_by_program[program].append(student)
+
+        print(f"Programmes: {len(students_by_program)}")
+        for program, prog_students in students_by_program.items():
+            print(f"  - {program}: {len(prog_students)} étudiants")
+
+        model = cp_model.CpModel()
+
+        # Calculer le nombre de jours nécessaires
+        max_courses = max(sum(reqs.values()) for reqs in programs_requirements.values())
+        periods_per_day = 4
+        num_days = (max_courses + periods_per_day - 1) // periods_per_day
+        num_days = max(num_days, 9)
+
+        print(f"Configuration: {num_days} jours, {periods_per_day} périodes/jour")
+
+        # Créer tous les timeslots
+        timeslots = [TimeSlot(day=d, period=p) for d in range(1, num_days + 1) for p in range(1, periods_per_day + 1)]
+
+        # Variables: pour chaque étudiant, chaque cours, chaque timeslot
+        student_course_timeslot = {}
+
+        for student in students:
+            student_course_timeslot[student.id] = {}
+            program_reqs = programs_requirements.get(student.program, {})
+
+            for course_type, num_courses in program_reqs.items():
+                student_course_timeslot[student.id][course_type] = {}
+
+                for course_num in range(num_courses):
+                    student_course_timeslot[student.id][course_type][course_num] = {}
+
+                    for timeslot in timeslots:
+                        var_name = f'student_{student.id}_type_{course_type.name}_num_{course_num}_ts_{timeslot.day}_{timeslot.period}'
+                        student_course_timeslot[student.id][course_type][course_num][timeslot] = model.NewBoolVar(var_name)
+
+        print("Ajout des contraintes...")
+
+        # CONTRAINTE 1: Chaque étudiant doit avoir exactement un timeslot pour chaque cours
+        for student in students:
+            program_reqs = programs_requirements.get(student.program, {})
+            for course_type, num_courses in program_reqs.items():
+                for course_num in range(num_courses):
+                    model.AddExactlyOne([
+                        student_course_timeslot[student.id][course_type][course_num][ts]
+                        for ts in timeslots
+                    ])
+
+        # CONTRAINTE 2: Un étudiant ne peut avoir qu'un seul cours à la fois
+        for student in students:
+            program_reqs = programs_requirements.get(student.program, {})
+            for timeslot in timeslots:
+                courses_at_this_time = []
+                for course_type, num_courses in program_reqs.items():
+                    for course_num in range(num_courses):
+                        courses_at_this_time.append(
+                            student_course_timeslot[student.id][course_type][course_num][timeslot]
+                        )
+                if courses_at_this_time:
+                    model.Add(sum(courses_at_this_time) <= 1)
+
+        # CONTRAINTE 3: Max 1 cours par matière par jour
+        for student in students:
+            program_reqs = programs_requirements.get(student.program, {})
+            for day in range(1, num_days + 1):
+                for course_type, num_courses in program_reqs.items():
+                    courses_on_this_day = []
+                    for course_num in range(num_courses):
+                        for period in range(1, periods_per_day + 1):
+                            timeslot = TimeSlot(day=day, period=period)
+                            courses_on_this_day.append(
+                                student_course_timeslot[student.id][course_type][course_num][timeslot]
+                            )
+                    if courses_on_this_day:
+                        model.Add(sum(courses_on_this_day) <= 1)
+
+        # CONTRAINTE 4: Taille min/max des sessions (15-32 étudiants)
+        # Pour chaque programme, type de cours et timeslot
+        session_active = {}
+        for program, prog_students in students_by_program.items():
+            program_reqs = programs_requirements.get(program, {})
+            session_active[program] = {}
+
+            for course_type in program_reqs.keys():
+                session_active[program][course_type] = {}
+
+                for timeslot in timeslots:
+                    # Compter combien d'étudiants de ce programme prennent ce cours à ce timeslot
+                    students_in_session = []
+                    num_courses = program_reqs[course_type]
+
+                    for student in prog_students:
+                        for course_num in range(num_courses):
+                            students_in_session.append(
+                                student_course_timeslot[student.id][course_type][course_num][timeslot]
+                            )
+
+                    if students_in_session:
+                        num_students = sum(students_in_session)
+
+                        # Session active si au moins 1 étudiant
+                        session_var = model.NewBoolVar(f'session_{program}_{course_type.name}_{timeslot.day}_{timeslot.period}')
+                        session_active[program][course_type][timeslot] = session_var
+
+                        model.Add(num_students >= 1).OnlyEnforceIf(session_var)
+                        model.Add(num_students == 0).OnlyEnforceIf(session_var.Not())
+
+                        # Si session active: min 15, max 32 étudiants
+                        model.Add(num_students >= 15).OnlyEnforceIf(session_var)
+                        model.Add(num_students <= 32)
+
+        # OBJECTIF: Minimiser le nombre de sessions actives
+        print("Ajout de l'objectif: minimiser les sessions...")
+        total_sessions = []
+        for program in students_by_program.keys():
+            program_reqs = programs_requirements.get(program, {})
+            for course_type in program_reqs.keys():
+                for timeslot in timeslots:
+                    if timeslot in session_active[program][course_type]:
+                        total_sessions.append(session_active[program][course_type][timeslot])
+
+        model.Minimize(sum(total_sessions))
+
+        # Résolution
+        print(f"\nDémarrage de la résolution (timeout: {timeout_seconds}s)...")
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = timeout_seconds
+        solver.parameters.num_search_workers = 8
+        solver.parameters.log_search_progress = True
+
+        # Paramètres optimisés
+        solver.parameters.cp_model_presolve = True
+        solver.parameters.linearization_level = 2
+        solver.parameters.symmetry_level = 2
+        solver.parameters.search_branching = cp_model.PORTFOLIO_SEARCH
+
+        status = solver.Solve(model)
+
+        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+            print(f"\n✓ Solution trouvée! (statut: {'OPTIMAL' if status == cp_model.OPTIMAL else 'FEASIBLE'})")
+            print(f"Temps de résolution: {solver.WallTime():.2f}s")
+            print(f"Sessions créées: {solver.ObjectiveValue()}")
+
+            # Extraire la solution
+            sessions = []
+            session_id = 1
+            session_map = {}  # {(program, course_type, timeslot): session}
+
+            # Créer les sessions
+            for program, prog_students in students_by_program.items():
+                program_reqs = programs_requirements.get(program, {})
+
+                for course_type in program_reqs.keys():
+                    for timeslot in timeslots:
+                        if timeslot in session_active[program][course_type]:
+                            if solver.Value(session_active[program][course_type][timeslot]):
+                                session = CourseSession(
+                                    id=session_id,
+                                    course_type=course_type,
+                                    timeslot=timeslot,
+                                    students=[]
+                                )
+                                sessions.append(session)
+                                session_map[(program, course_type, timeslot)] = session
+                                session_id += 1
+
+            # Créer les horaires individuels
+            student_schedules = {}
+            for student in students:
+                program = student.program if student.program else "Défaut"
+                program_reqs = programs_requirements.get(program, {})
+                schedule_entries = []
+
+                for course_type, num_courses in program_reqs.items():
+                    for course_num in range(num_courses):
+                        for timeslot in timeslots:
+                            if solver.Value(student_course_timeslot[student.id][course_type][course_num][timeslot]):
+                                session = session_map.get((program, course_type, timeslot))
+                                if session:
+                                    session.students.append(student)
+
+                                entry = StudentScheduleEntry(
+                                    course_type=course_type,
+                                    timeslot=timeslot,
+                                    session=session
+                                )
+                                schedule_entries.append(entry)
+                                break
+
+                student_schedules[student.id] = sorted(schedule_entries, key=lambda x: (x.timeslot.day, x.timeslot.period))
+
+            sessions = sorted(sessions, key=lambda x: (x.timeslot.day, x.timeslot.period))
+
+            print(f"\nRésultat: {len(sessions)} sessions créées pour {len(students)} étudiants")
+
+            # Statistiques par programme
+            for program, prog_students in students_by_program.items():
+                program_sessions = [s for s in sessions if s.students and s.students[0].program == program]
+                print(f"  - {program}: {len(program_sessions)} sessions")
+
+            return True, sessions, student_schedules
+
+        else:
+            print(f"\n✗ Aucune solution trouvée (statut: {solver.StatusName(status)})")
+            return False, [], {}

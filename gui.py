@@ -60,6 +60,7 @@ class SchedulerApp:
         # Nouvelles données pour le flux en 3 étapes (avec groupes par programme)
         self.step1_completed = False  # Étape 1 : Programmes chargés et groupes configurés
         self.step2_completed = False  # Étape 2 : Horaires de groupe générés
+        self.step2_5_completed = False  # Étape 2.5 (OPTIONNELLE) : Horaires individuels optimisés
         self.step3_completed = False  # Étape 3 : Enseignants/salles assignés
 
         self.create_widgets()
@@ -106,16 +107,27 @@ class SchedulerApp:
         )
         self.step1_btn.pack(side=LEFT, padx=(0, 10))
 
-        # Bouton 2 : Générer les horaires des étudiants
+        # Bouton 2 : Générer les horaires des groupes
         self.step2_btn = ttk.Button(
             toolbar_frame,
-            text="2️⃣ Générer les horaires étudiants",
+            text="2️⃣ Générer horaires de groupe",
             command=self.step2_generate_student_schedules,
             state="disabled",
-            width=35,
+            width=30,
             style="Gold.TButton"
         )
         self.step2_btn.pack(side=LEFT, padx=(0, 10))
+
+        # Bouton 2.5 : Optimiser avec horaires individuels (OPTIONNEL)
+        self.step2_5_btn = ttk.Button(
+            toolbar_frame,
+            text="🔄 Optimiser (individuel)",
+            command=self.step2_5_optimize_individual_schedules,
+            state="disabled",
+            width=25,
+            style="info.TButton"
+        )
+        self.step2_5_btn.pack(side=LEFT, padx=(0, 10))
 
         # Bouton 3 : Assigner les enseignants et salles
         self.step3_btn = ttk.Button(
@@ -123,7 +135,7 @@ class SchedulerApp:
             text="3️⃣ Assigner enseignants et salles",
             command=self.step3_assign_teachers_rooms,
             state="disabled",
-            width=35,
+            width=30,
             style="Gold.TButton"
         )
         self.step3_btn.pack(side=LEFT, padx=(0, 10))
@@ -902,7 +914,8 @@ class SchedulerApp:
                 self.populate_student_selector()
                 self.display_statistics()
 
-                # Activer le bouton de l'étape 3
+                # Activer les boutons suivants
+                self.step2_5_btn.config(state="normal")
                 self.step3_btn.config(state="normal")
 
                 self.status_var.set(f"✓ Horaires de groupe générés! {len(sessions)} sessions créées.")
@@ -911,7 +924,11 @@ class SchedulerApp:
                     f"• {len(sessions)} sessions créées\n"
                     f"• {len(self.groups)} groupes avec horaires complets\n"
                     f"• Enseignants et salles pas encore assignés\n\n"
-                    "Passez à l'étape 3 pour assigner les enseignants et salles.",
+                    "Options:\n"
+                    "🔄 OPTIONNEL: Cliquez sur 'Optimiser (individuel)' pour permettre\n"
+                    "   aux élèves d'un même programme de se mélanger (moins de sessions)\n"
+                    "OU\n"
+                    "3️⃣ Passez directement à l'étape 3 pour assigner enseignants et salles",
                     "Étape 2 complétée"
                 )
             else:
@@ -935,6 +952,78 @@ class SchedulerApp:
 
         finally:
             self.step2_btn.config(state="normal")
+
+    def step2_5_optimize_individual_schedules(self):
+        """ÉTAPE 2.5 (OPTIONNELLE) : Optimise avec des horaires individuels par programme"""
+        if not self.step2_completed or not self.students:
+            Messagebox.show_warning(
+                "Veuillez d'abord compléter l'étape 2 (génération des horaires de groupe).",
+                "Étape 2 non complétée"
+            )
+            return
+
+        try:
+            self.status_var.set("Optimisation avec horaires individuels en cours...")
+            self.step2_5_btn.config(state="disabled")
+            self.step3_btn.config(state="disabled")
+            self.progress.start()
+            self.root.update()
+
+            # Appeler le solveur d'horaires individuels par programme
+            success, sessions, student_schedules = ScheduleOptimizer.solve_individual_schedules_by_program(
+                self.students,
+                self.programs_requirements,
+                timeout_seconds=600
+            )
+
+            self.progress.stop()
+
+            if success:
+                # Remplacer les données de l'étape 2 par les données optimisées
+                self.sessions = sessions
+                self.student_schedules = student_schedules
+                self.step2_5_completed = True
+
+                # Mettre à jour les affichages
+                self.display_sessions()
+                self.populate_student_selector()
+                self.display_statistics()
+
+                # Activer l'étape 3
+                self.step3_btn.config(state="normal")
+
+                self.status_var.set(f"✓ Optimisation complétée! {len(sessions)} sessions créées.")
+                Messagebox.show_info(
+                    f"Les horaires individuels ont été optimisés avec succès!\n\n"
+                    f"• {len(sessions)} sessions créées (vs {len(self.groups) * 36} avec groupes rigides)\n"
+                    f"• Horaires individuels pour {len(self.students)} étudiants\n"
+                    f"• Les élèves d'un même programme peuvent se mélanger\n"
+                    f"• Enseignants et salles pas encore assignés\n\n"
+                    "Passez à l'étape 3 pour assigner les enseignants et salles.",
+                    "Étape 2.5 complétée"
+                )
+            else:
+                self.status_var.set("❌ Échec de l'optimisation")
+                self.step3_btn.config(state="normal")  # Réactiver step3 pour pouvoir continuer avec step2
+                Messagebox.show_error(
+                    "Impossible de trouver une solution optimisée.\n\n"
+                    "Vous pouvez continuer avec les horaires de groupe de l'étape 2\n"
+                    "en passant directement à l'étape 3.",
+                    "Erreur d'optimisation"
+                )
+
+        except Exception as e:
+            import traceback
+            self.progress.stop()
+            self.status_var.set("❌ Erreur lors de l'optimisation")
+            self.step3_btn.config(state="normal")
+            Messagebox.show_error(
+                f"Une erreur s'est produite:\n{str(e)}\n\n{traceback.format_exc()}",
+                "Erreur"
+            )
+
+        finally:
+            self.step2_5_btn.config(state="normal")
 
     def step3_assign_teachers_rooms(self):
         """ÉTAPE 3 : Assigne les enseignants et salles aux sessions existantes"""
@@ -1020,11 +1109,13 @@ class SchedulerApp:
             self.program_labels = {}
             self.step1_completed = False
             self.step2_completed = False
+            self.step2_5_completed = False
             self.step3_completed = False
 
             # Réinitialiser les boutons
             self.step1_btn.config(state="normal")
             self.step2_btn.config(state="disabled")
+            self.step2_5_btn.config(state="disabled")
             self.step3_btn.config(state="disabled")
             self.export_btn.config(state="disabled")
 
