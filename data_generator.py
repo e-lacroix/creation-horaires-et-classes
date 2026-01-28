@@ -121,6 +121,7 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
         programs_requirements["Défaut"] = get_course_requirements()
 
     # 2. Convertir les enseignants
+    # IMPORTANT: Charger TOUS les enseignants du CSV pour s'assurer que toutes les matières sont couvertes
     teachers = []
     mapping_matieres = {
         "Science": CourseType.SCIENCE,
@@ -138,7 +139,7 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
         "Option": CourseType.OPTION
     }
 
-    for i, ens_data in enumerate(enseignants_data[:num_teachers]):
+    for i, ens_data in enumerate(enseignants_data):  # Charger TOUS les enseignants
         # Convertir les matières en CourseType
         can_teach = []
         for matiere in ens_data.matieres:
@@ -152,8 +153,9 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
         ))
 
     # 3. Convertir les salles de classe
+    # IMPORTANT: Charger TOUTES les salles du CSV pour s'assurer que toutes les matières ont des salles disponibles
     classrooms = []
-    for i, classe_data in enumerate(classes_data[:num_classrooms]):
+    for i, classe_data in enumerate(classes_data):  # Charger TOUTES les salles
         # Déterminer les matières autorisées en fonction du nom de la salle
         allowed_subjects = None
         if classe_data.matieres_autorisees:
@@ -186,7 +188,7 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
 
     # 4. Assigner les salles préférées aux enseignants
     classroom_dict = {c.id: c for c in classrooms}
-    for i, ens_data in enumerate(enseignants_data[:num_teachers]):
+    for i, ens_data in enumerate(enseignants_data):  # Utiliser TOUS les enseignants
         if i < len(teachers) and ens_data.classe_preferee:
             # Extraire le numéro de la classe (ex: "C003" -> 3)
             try:
