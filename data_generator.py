@@ -136,7 +136,8 @@ def load_data_from_csv(eleves_data, enseignants_data, classes_data,
         "CCQ": CourseType.CCQ,
         "Espagnol": CourseType.ESPAGNOL,
         "Éducation physique": CourseType.EDUC,
-        "Option": CourseType.OPTION
+        "Option": CourseType.OPTION,
+        "Arts": CourseType.ARTS
     }
 
     for i, ens_data in enumerate(enseignants_data):  # Charger TOUS les enseignants

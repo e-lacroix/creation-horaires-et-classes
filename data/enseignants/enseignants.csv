@@ -1,39 +1,85 @@
 Nom,Identifiant,Matières,Restrictions,Classe Préférée
-Marie Dubois,T001,Science|STE|ASC,,C012
-Jean Martin,T002,Science|STE|ASC,,C003
-Claude Fortin,T003,Science|ASC,,C006
-Diane Gagnon,T004,Science|STE|ASC,,C007
-Luc Bergeron,T005,Science|STE|ASC,,C016
-Élise Morin,T006,Science,,C003
-Sophie Bernard,T007,Français,,C006
-Pierre Lefevre,T008,Français,mercredi_matin,C002
-Hélène Tremblay,T009,Français,,C002
-Marc Bouchard,T010,Français,,C018
-Nathalie Roy,T011,Français,,C022
-Pascal Leblanc,T012,Français,,C022
-Isabelle Morin,T013,Math SN,,C017
-François Girard,T014,Math SN,,C006
-Stéphane Côté,T015,Math SN,,C009
-Valérie Gauthier,T016,Math SN,,C017
-André Lavoie,T017,Math CST,,C012
-Julie Pelletier,T018,Math CST,,C022
-Simon Ouellet,T019,Math CST,,C015
-Caroline Gagné,T020,Math CST,,C018
-Catherine Leblanc,T021,Anglais,,C006
-Michel Roy,T022,Anglais,,C007
-Thomas Bélanger,T023,Anglais,,C018
-Sarah Martin,T024,Anglais,,C004
-Elizabeth Johnson,T025,Anglais avancé,mercredi_matin,C016
-David Thompson,T026,Anglais avancé,,C003
-Julie Gagnon,T027,Histoire|CCQ,,C015
-Robert Tremblay,T028,Histoire,,C018
-Philippe Dubois,T029,Histoire|CCQ,,C015
-Amélie Fortin,T030,CCQ|Histoire,,C014
-Nathalie Bouchard,T031,Espagnol,,C001
-Carlos Rodriguez,T032,Espagnol,,C001
-Daniel Fortin,T033,Éducation physique,,
-Maxime Gauthier,T034,Éducation physique,,
-Jessica Lavoie,T035,Éducation physique,,
-Sylvie Pelletier,T036,Option,mercredi_matin,C022
-Martin Côté,T037,Option,,C001
-Isabelle Gagné,T038,Option,,C005
+Marie Dubois,T001,Science|STE|ASC,,C009
+Jean Martin,T002,Science|STE,,C001
+Claude Fortin,T003,Science|ASC,,C021
+Diane Gagnon,T004,Science|STE|ASC,,C001
+Luc Bergeron,T005,STE|ASC,,C025
+Élise Morin,T006,Science,,C043
+Antoine Rousseau,T007,Science|STE|ASC,,C010
+Camille Leclerc,T008,Science|STE,,C021
+Gabriel Fontaine,T009,Science|ASC,,C038
+Charlotte Mercier,T010,Science|STE,,C022
+Alexandre Dupont,T011,STE|ASC,,C008
+Léa Fournier,T012,Science,,C001
+Sophie Bernard,T013,Français,,C030
+Pierre Lefevre,T014,Français,,C040
+Hélène Tremblay,T015,Français,,C037
+Marc Bouchard,T016,Français,,C018
+Nathalie Roy,T017,Français,,C028
+Pascal Leblanc,T018,Français,,C040
+Olivier Moreau,T019,Français,,C007
+Chloé Girard,T020,Français,,C013
+Nicolas Petit,T021,Français,,C037
+Émilie Durand,T022,Français,,C021
+Benjamin Laurent,T023,Français,,C023
+Laurence Simon,T024,Français,,C022
+Isabelle Morin,T025,Math SN,,C044
+François Girard,T026,Math SN,,C012
+Stéphane Côté,T027,Math SN,,C022
+Valérie Gauthier,T028,Math SN,,C026
+Mathieu Thomas,T029,Math SN,,C017
+Audrey Robert,T030,Math SN,,C024
+Samuel Richard,T031,Math SN,,C019
+Mélanie Blanc,T032,Math SN,,C013
+André Lavoie,T033,Math CST,,C002
+Julie Pelletier,T034,Math CST,,C038
+Simon Ouellet,T035,Math CST,,C037
+Caroline Gagné,T036,Math CST,,C005
+Vincent Lefebvre,T037,Math CST,,C041
+Gabrielle Roux,T038,Math CST,,C020
+William Chevalier,T039,Math CST,,C005
+Alice Garnier,T040,Math CST,,C022
+Catherine Leblanc,T041,Anglais,,C012
+Michel Roy,T042,Anglais,,C002
+Thomas Bélanger,T043,Anglais,,C044
+Sarah Martin,T044,Anglais,,C010
+Xavier Bertrand,T045,Anglais,,C008
+Rosalie Faure,T046,Anglais,,C040
+Félix Lambert,T047,Anglais,,C003
+Juliette Renard,T048,Anglais,,C028
+Elizabeth Johnson,T049,Anglais avancé,,C027
+David Thompson,T050,Anglais avancé,,C038
+Lucas Bonnet,T051,Anglais avancé,,C025
+Florence Mercier,T052,Anglais avancé,,C013
+Julie Gagnon,T053,Histoire|CCQ,,C006
+Robert Tremblay,T054,Histoire,,C020
+Philippe Dubois,T055,Histoire|CCQ,,C021
+Amélie Fortin,T056,Histoire,,C041
+Raphaël Roussel,T057,Histoire|CCQ,,C025
+Anaïs Dumas,T058,Histoire,,C007
+Hugo Perrin,T059,Histoire|CCQ,,C004
+Coralie Mathieu,T060,Histoire,,C028
+Nathan Aubert,T061,CCQ,,C030
+Maude Leroy,T062,CCQ,,C010
+Zachary Bourgeois,T063,CCQ,,C005
+Ariane Benoit,T064,CCQ,,C020
+Nathalie Bouchard,T065,Espagnol,,C039
+Carlos Rodriguez,T066,Espagnol,,C003
+Maxime Rousseau,T067,Espagnol,,C039
+Clara Martinez,T068,Espagnol,,C013
+Daniel Fortin,T069,Éducation physique,,
+Maxime Gauthier,T070,Éducation physique,,
+Jessica Lavoie,T071,Éducation physique,,
+Tristan Lefebvre,T072,Éducation physique,,
+Mélodie Gagnon,T073,Éducation physique,,
+Étienne Barbier,T074,Éducation physique,,
+Sylvie Pelletier,T075,Option,,C008
+Martin Côté,T076,Option,,C002
+Isabelle Gagné,T077,Option,,C013
+Jade Brunet,T078,Option,,C026
+Noémie Caron,T079,Option,,C038
+Édouard Lemoine,T080,Option,,C006
+Louis Blanchard,T081,Arts,,C041
+Emma Vincent,T082,Arts,,C012
+Antoine Morel,T083,Arts,,C008
+Camille Renaud,T084,Arts,,C009

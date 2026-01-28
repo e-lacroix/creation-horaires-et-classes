@@ -2,22 +2,44 @@ Identifiant,Nom,Capacité,Matières Autorisées
 C001,Laboratoire 1,32,Science|STE|ASC
 C002,Laboratoire 2,32,Science|STE|ASC
 C003,Laboratoire 3,32,Science|STE|ASC
-C004,Salle régulière 1,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C005,Salle régulière 2,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C006,Salle régulière 3,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C007,Salle régulière 4,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C008,Salle régulière 5,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C009,Salle régulière 6,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C010,Salle régulière 7,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C011,Salle régulière 8,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C012,Salle régulière 9,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C013,Salle régulière 10,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
-C014,Salle multimédia 1,32,Histoire|CCQ
-C015,Salle multimédia 2,32,Histoire|CCQ
-C016,Gymnase 1,32,Éducation physique
-C017,Gymnase 2,32,Éducation physique
-C018,Gymnase 3,32,Éducation physique
-C019,Salle d'arts 1,32,Option
-C020,Salle d'arts 2,32,Option
-C021,Salle d'arts 3,32,Option
-C022,Salle d'arts 4,32,Option
+C004,Laboratoire 4,32,Science|STE|ASC
+C005,Laboratoire 5,32,Science|STE|ASC
+C006,Laboratoire 6,32,Science|STE|ASC
+C007,Salle régulière 1,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C008,Salle régulière 2,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C009,Salle régulière 3,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C010,Salle régulière 4,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C011,Salle régulière 5,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C012,Salle régulière 6,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C013,Salle régulière 7,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C014,Salle régulière 8,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C015,Salle régulière 9,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C016,Salle régulière 10,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C017,Salle régulière 11,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C018,Salle régulière 12,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C019,Salle régulière 13,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C020,Salle régulière 14,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C021,Salle régulière 15,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C022,Salle régulière 16,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C023,Salle régulière 17,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C024,Salle régulière 18,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C025,Salle régulière 19,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C026,Salle régulière 20,32,Espagnol|Français|Math SN|Math CST|Anglais|Anglais avancé
+C027,Salle multimédia 1,32,Histoire|CCQ
+C028,Salle multimédia 2,32,Histoire|CCQ
+C029,Salle multimédia 3,32,Histoire|CCQ
+C030,Salle multimédia 4,32,Histoire|CCQ
+C031,Gymnase 1,32,Éducation physique
+C032,Gymnase 2,32,Éducation physique
+C033,Gymnase 3,32,Éducation physique
+C034,Gymnase 4,32,Éducation physique
+C035,Gymnase 5,32,Éducation physique
+C036,Gymnase 6,32,Éducation physique
+C037,Salle d'arts 1,32,Option|Arts
+C038,Salle d'arts 2,32,Option|Arts
+C039,Salle d'arts 3,32,Option|Arts
+C040,Salle d'arts 4,32,Option|Arts
+C041,Salle d'arts 5,32,Option|Arts
+C042,Salle d'arts 6,32,Option|Arts
+C043,Salle d'arts 7,32,Option|Arts
+C044,Salle d'arts 8,32,Option|Arts

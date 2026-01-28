@@ -21,6 +21,7 @@ class CourseType(Enum):
     ESPAGNOL = "Espagnol"
     EDUC = "Éducation physique"
     OPTION = "Option"
+    ARTS = "Arts"  # Arts plastiques
 
 
 @dataclass

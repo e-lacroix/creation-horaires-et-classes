@@ -32,7 +32,7 @@ def creer_donnees_exemple():
             "Fortin", "Gagné", "Ouellet", "Pelletier", "Bélanger", "Leblanc", "Bergeron"]
 
     matieres_talents = ["Science", "STE", "ASC", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé", "Histoire",
-                       "CCQ", "Espagnol", "Éducation physique", "Option"]
+                       "CCQ", "Espagnol", "Éducation physique", "Option", "Arts"]
 
     # Répartition des élèves :
     # - 63 élèves en Excellence
@@ -86,85 +86,133 @@ def creer_donnees_exemple():
     print(f"[OK] {len(eleves)} eleves crees dans data/eleves/eleves.csv")
 
     # 3. Créer des enseignants d'exemple
-    # Avec 176 élèves, on a besoin d'environ 30-35 enseignants
+    # Double le nombre d'enseignants pour 176 élèves (environ 76 enseignants)
     print("\nCréation des enseignants d'exemple...")
     enseignants = []
     noms_enseignants = [
-        # Sciences (environ 6 enseignants)
+        # Sciences (12 enseignants - doublé)
         ("Marie Dubois", ["Science", "STE", "ASC"], False),
         ("Jean Martin", ["Science", "STE"], False),
         ("Claude Fortin", ["Science", "ASC"], False),
         ("Diane Gagnon", ["Science", "STE", "ASC"], False),
         ("Luc Bergeron", ["STE", "ASC"], False),
         ("Élise Morin", ["Science"], False),
+        ("Antoine Rousseau", ["Science", "STE", "ASC"], False),
+        ("Camille Leclerc", ["Science", "STE"], False),
+        ("Gabriel Fontaine", ["Science", "ASC"], False),
+        ("Charlotte Mercier", ["Science", "STE"], False),
+        ("Alexandre Dupont", ["STE", "ASC"], False),
+        ("Léa Fournier", ["Science"], False),
 
-        # Français (environ 6 enseignants)
+        # Français (12 enseignants - doublé)
         ("Sophie Bernard", ["Français"], False),
         ("Pierre Lefevre", ["Français"], False),
         ("Hélène Tremblay", ["Français"], False),
         ("Marc Bouchard", ["Français"], False),
         ("Nathalie Roy", ["Français"], False),
         ("Pascal Leblanc", ["Français"], False),
+        ("Olivier Moreau", ["Français"], False),
+        ("Chloé Girard", ["Français"], False),
+        ("Nicolas Petit", ["Français"], False),
+        ("Émilie Durand", ["Français"], False),
+        ("Benjamin Laurent", ["Français"], False),
+        ("Laurence Simon", ["Français"], False),
 
-        # Math SN (environ 4 enseignants)
+        # Math SN (8 enseignants - doublé)
         ("Isabelle Morin", ["Math SN"], False),
         ("François Girard", ["Math SN"], False),
         ("Stéphane Côté", ["Math SN"], False),
         ("Valérie Gauthier", ["Math SN"], False),
+        ("Mathieu Thomas", ["Math SN"], False),
+        ("Audrey Robert", ["Math SN"], False),
+        ("Samuel Richard", ["Math SN"], False),
+        ("Mélanie Blanc", ["Math SN"], False),
 
-        # Math CST (environ 4 enseignants)
+        # Math CST (8 enseignants - doublé)
         ("André Lavoie", ["Math CST"], False),
         ("Julie Pelletier", ["Math CST"], False),
         ("Simon Ouellet", ["Math CST"], False),
         ("Caroline Gagné", ["Math CST"], False),
+        ("Vincent Lefebvre", ["Math CST"], False),
+        ("Gabrielle Roux", ["Math CST"], False),
+        ("William Chevalier", ["Math CST"], False),
+        ("Alice Garnier", ["Math CST"], False),
 
-        # Anglais (environ 4 enseignants)
+        # Anglais (8 enseignants - doublé)
         ("Catherine Leblanc", ["Anglais"], False),
         ("Michel Roy", ["Anglais"], False),
         ("Thomas Bélanger", ["Anglais"], False),
         ("Sarah Martin", ["Anglais"], False),
+        ("Xavier Bertrand", ["Anglais"], False),
+        ("Rosalie Faure", ["Anglais"], False),
+        ("Félix Lambert", ["Anglais"], False),
+        ("Juliette Renard", ["Anglais"], False),
 
-        # Anglais avancé (environ 2 enseignants)
+        # Anglais avancé (4 enseignants - doublé)
         ("Elizabeth Johnson", ["Anglais avancé"], False),
         ("David Thompson", ["Anglais avancé"], False),
+        ("Lucas Bonnet", ["Anglais avancé"], False),
+        ("Florence Mercier", ["Anglais avancé"], False),
 
-        # Histoire/CCQ (environ 4 enseignants)
+        # Histoire (8 enseignants - doublé)
         ("Julie Gagnon", ["Histoire", "CCQ"], False),
         ("Robert Tremblay", ["Histoire"], False),
         ("Philippe Dubois", ["Histoire", "CCQ"], False),
-        ("Amélie Fortin", ["CCQ", "Histoire"], False),
+        ("Amélie Fortin", ["Histoire"], False),
+        ("Raphaël Roussel", ["Histoire", "CCQ"], False),
+        ("Anaïs Dumas", ["Histoire"], False),
+        ("Hugo Perrin", ["Histoire", "CCQ"], False),
+        ("Coralie Mathieu", ["Histoire"], False),
 
-        # Espagnol (environ 2 enseignants)
+        # CCQ (4 enseignants supplémentaires)
+        ("Nathan Aubert", ["CCQ"], False),
+        ("Maude Leroy", ["CCQ"], False),
+        ("Zachary Bourgeois", ["CCQ"], False),
+        ("Ariane Benoit", ["CCQ"], False),
+
+        # Espagnol (4 enseignants - doublé)
         ("Nathalie Bouchard", ["Espagnol"], False),
         ("Carlos Rodriguez", ["Espagnol"], False),
+        ("Maxime Rousseau", ["Espagnol"], False),
+        ("Clara Martinez", ["Espagnol"], False),
 
-        # Éducation physique (environ 3 enseignants)
-        ("Daniel Fortin", ["Éducation physique"], True),  # Pas de classe préférée
+        # Éducation physique (6 enseignants - doublé)
+        ("Daniel Fortin", ["Éducation physique"], True),
         ("Maxime Gauthier", ["Éducation physique"], True),
         ("Jessica Lavoie", ["Éducation physique"], True),
+        ("Tristan Lefebvre", ["Éducation physique"], True),
+        ("Mélodie Gagnon", ["Éducation physique"], True),
+        ("Étienne Barbier", ["Éducation physique"], True),
 
-        # Option (environ 3 enseignants)
+        # Option (6 enseignants - doublé)
         ("Sylvie Pelletier", ["Option"], False),
         ("Martin Côté", ["Option"], False),
-        ("Isabelle Gagné", ["Option"], False)
+        ("Isabelle Gagné", ["Option"], False),
+        ("Jade Brunet", ["Option"], False),
+        ("Noémie Caron", ["Option"], False),
+        ("Édouard Lemoine", ["Option"], False),
+
+        # Arts (4 enseignants - nouveau)
+        ("Louis Blanchard", ["Arts"], False),
+        ("Emma Vincent", ["Arts"], False),
+        ("Antoine Morel", ["Arts"], False),
+        ("Camille Renaud", ["Arts"], False)
     ]
 
     for i, (nom, matieres, est_enseignant_gym) in enumerate(noms_enseignants):
         identifiant = f"T{i+1:03d}"
 
-        # 10% des enseignants ont des restrictions
+        # AUCUNE restriction (comme demandé)
         restrictions = ""
-        if random.random() < 0.1:
-            restrictions = "mercredi_matin"
 
         # Classe préférée aléatoire (mais pas le gymnase)
-        # Avec 22 classes, on a plusieurs types de salles
+        # Avec 44 classes maintenant
         if est_enseignant_gym:
             # Pas de classe préférée pour les enseignants de gym
             classe_preferee = ""
         else:
-            # Choisir une classe entre 1 et 22 (on évitera les gymnases - approximativement classes 19-21)
-            choix_classes = list(range(1, 19)) + [22]  # Classes 1-18 et 22
+            # Choisir une classe entre 1 et 44 (on évitera les gymnases - approximativement classes 31-36)
+            choix_classes = list(range(1, 31)) + list(range(37, 45))  # Classes 1-30 et 37-44
             classe_preferee = f"C{random.choice(choix_classes):03d}"
 
         enseignants.append(EnseignantData(
@@ -178,19 +226,22 @@ def creer_donnees_exemple():
     data_manager.sauvegarder_enseignants(enseignants, "enseignants.csv")
     print(f"[OK] {len(enseignants)} enseignants crees dans data/enseignants/enseignants.csv")
 
-    # 4. Créer des classes d'exemple (22 classes pour 176 élèves)
+    # 4. Créer des classes d'exemple (44 classes pour 176 élèves - doublé)
     print("\nCréation des classes d'exemple...")
     classes = []
 
     # Définition des types de salles avec matières autorisées
-    # Avec 176 élèves et des sessions de 20-32 élèves, on a besoin de plusieurs salles de chaque type
+    # Double le nombre de salles pour plus de flexibilité
     types_salles = [
-        # 3 Laboratoires pour les sciences
+        # 6 Laboratoires pour les sciences (doublé)
         ("Laboratoire 1", 32, ["Science", "STE", "ASC"]),
         ("Laboratoire 2", 32, ["Science", "STE", "ASC"]),
         ("Laboratoire 3", 32, ["Science", "STE", "ASC"]),
+        ("Laboratoire 4", 32, ["Science", "STE", "ASC"]),
+        ("Laboratoire 5", 32, ["Science", "STE", "ASC"]),
+        ("Laboratoire 6", 32, ["Science", "STE", "ASC"]),
 
-        # 10 Salles régulières pour Français, Math SN, Math CST, Anglais, Anglais avancé, Espagnol
+        # 20 Salles régulières pour Français, Math SN, Math CST, Anglais, Anglais avancé, Espagnol (doublé)
         ("Salle régulière 1", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
         ("Salle régulière 2", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
         ("Salle régulière 3", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
@@ -201,21 +252,40 @@ def creer_donnees_exemple():
         ("Salle régulière 8", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
         ("Salle régulière 9", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
         ("Salle régulière 10", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 11", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 12", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 13", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 14", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 15", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 16", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 17", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 18", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 19", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
+        ("Salle régulière 20", 32, ["Espagnol", "Français", "Math SN", "Math CST", "Anglais", "Anglais avancé"]),
 
-        # 2 Salles multimédia pour Histoire et CCQ
+        # 4 Salles multimédia pour Histoire et CCQ (doublé)
         ("Salle multimédia 1", 32, ["Histoire", "CCQ"]),
         ("Salle multimédia 2", 32, ["Histoire", "CCQ"]),
+        ("Salle multimédia 3", 32, ["Histoire", "CCQ"]),
+        ("Salle multimédia 4", 32, ["Histoire", "CCQ"]),
 
-        # 3 Gymnases pour Éducation physique
+        # 6 Gymnases pour Éducation physique (doublé)
         ("Gymnase 1", 32, ["Éducation physique"]),
         ("Gymnase 2", 32, ["Éducation physique"]),
         ("Gymnase 3", 32, ["Éducation physique"]),
+        ("Gymnase 4", 32, ["Éducation physique"]),
+        ("Gymnase 5", 32, ["Éducation physique"]),
+        ("Gymnase 6", 32, ["Éducation physique"]),
 
-        # 4 Salles d'arts pour Option
-        ("Salle d'arts 1", 32, ["Option"]),
-        ("Salle d'arts 2", 32, ["Option"]),
-        ("Salle d'arts 3", 32, ["Option"]),
-        ("Salle d'arts 4", 32, ["Option"])
+        # 8 Salles d'arts pour Option et Arts (doublé + Arts)
+        ("Salle d'arts 1", 32, ["Option", "Arts"]),
+        ("Salle d'arts 2", 32, ["Option", "Arts"]),
+        ("Salle d'arts 3", 32, ["Option", "Arts"]),
+        ("Salle d'arts 4", 32, ["Option", "Arts"]),
+        ("Salle d'arts 5", 32, ["Option", "Arts"]),
+        ("Salle d'arts 6", 32, ["Option", "Arts"]),
+        ("Salle d'arts 7", 32, ["Option", "Arts"]),
+        ("Salle d'arts 8", 32, ["Option", "Arts"])
     ]
 
     for i, (nom, capacite, matieres) in enumerate(types_salles):
