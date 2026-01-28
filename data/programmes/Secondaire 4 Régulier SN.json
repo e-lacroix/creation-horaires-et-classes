@@ -1,5 +1,5 @@
 {
-  "nom": "Secondaire 4 Sciences",
+  "nom": "Secondaire 4 Régulier SN",
   "cours": {
     "Science": 4,
     "STE": 4,
@@ -12,6 +12,6 @@
     "Éducation physique": 2,
     "Option": 2
   },
-  "description": "Programme enrichi en sciences pour les élèves de Secondaire 4",
+  "description": "Programme de base enrichi en math et en sciences pour les élèves de Secondaire 4 au Québec ",
   "min_etudiants_par_session": 20
 }

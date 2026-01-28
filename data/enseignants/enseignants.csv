@@ -1,9 +1,9 @@
 Nom,Identifiant,Matières,Restrictions,Classe Préférée
 Marie Dubois,T001,Science|STE|ASC,,C012
-Jean Martin,T002,Science|STE,,C003
+Jean Martin,T002,Science|STE|ASC,,C003
 Claude Fortin,T003,Science|ASC,,C006
 Diane Gagnon,T004,Science|STE|ASC,,C007
-Luc Bergeron,T005,STE|ASC,,C016
+Luc Bergeron,T005,Science|STE|ASC,,C016
 Élise Morin,T006,Science,,C003
 Sophie Bernard,T007,Français,,C006
 Pierre Lefevre,T008,Français,mercredi_matin,C002

@@ -1,5 +1,5 @@
 {
-  "nom": "Secondaire 4 Sciences",
+  "nom": "Secondaire 4 Excellence",
   "cours": {
     "Science": 2,
     "STE": 4,
@@ -13,6 +13,6 @@
     "Espagnol": 2,
     "Option": 2
   },
-  "description": "Programme enrichi en sciences pour les élèves de Secondaire 4",
+  "description": "Programme enrichi en sciences, en math et en langue pour les élèves de Secondaire 4 au Québec",
   "min_etudiants_par_session": 20
 }
